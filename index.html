@@ -91,6 +91,9 @@
   #fsReg { --fs-bg:#eef1f4; --fs-card:#ffffff; --fs-text:#17262e; --fs-sub:#5b6b73; --fs-sub2:#7c8a91; --fs-faint:#9fb0b7; --fs-border:#dfe5e9; --fs-accent:#0f5e6b; --fs-accentD:#0b4954;
     position:fixed; inset:0; background:var(--fs-bg); color:var(--fs-text); z-index:80; overflow-y:auto; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
   #fsReg.fsdark { --fs-bg:#15181c; --fs-card:#23272d; --fs-text:#e8e8e8; --fs-sub:#aab6bc; --fs-sub2:#8b979d; --fs-faint:#6d787e; --fs-border:#3a3f46; --fs-accent:#2596ab; --fs-accentD:#1b7487; }
+  #fsReg { color-scheme: light; }
+  #fsReg.fsdark { color-scheme: dark; }
+  #fsReg input[type=date] { background:var(--fs-card); color:var(--fs-text); }
   #fsReg .wrap { max-width:1060px; margin:0 auto; padding:18px 18px 80px; }
   .fscard { background:var(--fs-card); border:1px solid var(--fs-border); border-radius:14px; box-shadow:0 1px 3px rgba(20,40,50,.05); }
   .fsbtn { border:1px solid var(--fs-border); background:var(--fs-card); color:var(--fs-text); border-radius:10px; padding:11px 16px; font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; }
@@ -112,7 +115,7 @@
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
       <span style="font-size:21px;font-weight:800;color:#c8340f">&#128293; FIRESPARK</span>
-      <span style="font-size:11px;color:#7c8a91">v0.3 beta</span>
+      <span style="font-size:11px;color:#7c8a91">v0.4 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsThemeBtn" title="Light / dark">&#127765;</button>
       <button class="fsbtn" id="fsExportReg" style="display:none">&#128190; Export register</button>
@@ -150,7 +153,7 @@
 
   <div id="topbar">
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.3 beta</span></span>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.4 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans">&#9776; Plans</button>
     <button class="btn" id="btnNew">&#65291; New</button>
@@ -4150,19 +4153,6 @@ function fsRenderTab() {
 
   if (fsTab === "overview") {
     html += fsInfoPhotoHtml();
-    const extras = Object.entries(s.fields || {}).filter(([k]) => !/^address$/i.test(k));
-    html += '<div class="fscard" style="padding:20px;margin-top:16px">';
-    if (s.panelInstructions) html += '<div class="fslabel">Panel instructions</div><div style="font-size:14px;white-space:pre-wrap;margin-bottom:10px">' + fsEsc(s.panelInstructions) + '</div>';
-    if (s.additionalInfo) html += '<div class="fslabel">Additional info</div><div style="font-size:14px;white-space:pre-wrap;margin-bottom:10px">' + fsEsc(s.additionalInfo) + '</div>';
-    if (extras.length) {
-      html += '<div class="fslabel">Register details</div><table style="width:100%;border-collapse:collapse;font-size:13.5px">';
-      extras.forEach(([k, v]) => {
-        html += '<tr><td style="border-top:1px solid var(--fs-border);padding:8px 6px;color:var(--fs-sub);width:38%">' + fsEsc(k) + '</td><td style="border-top:1px solid var(--fs-border);padding:8px 6px;font-weight:600">' + fsEsc(v) + '</td></tr>';
-      });
-      html += '</table>';
-    }
-    if (!s.panelInstructions && !s.additionalInfo && !extras.length) html += '<div style="color:var(--fs-faint);font-size:13.5px">Nothing further recorded for this site.</div>';
-    html += '</div>';
   }
 
   if (fsTab === "equip") {
