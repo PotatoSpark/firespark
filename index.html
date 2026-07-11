@@ -137,7 +137,7 @@
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
       <span style="font-size:21px;font-weight:800;color:#c8340f;display:inline-flex;align-items:center;gap:8px"><img src="icon-192.png" style="width:26px;height:26px;border-radius:6px" alt=""> FIRESPARK</span>
-      <span style="font-size:11px;color:#7c8a91">v0.8 beta</span>
+      <span style="font-size:11px;color:#7c8a91">v0.9 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsThemeBtn" title="Light / dark">&#127765;</button>
       <button class="fsbtn" id="fsExportReg" style="display:none">&#128190; Export register</button>
@@ -175,8 +175,9 @@
 
   <div id="topbar">
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
-    <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.8 beta</span></span>
+    <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
+    <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.9 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -421,6 +422,16 @@
   </div>
 </div>
 <input type="file" id="fsCkInput" accept=".json,application/json" style="display:none">
+<div class="modal" id="fsAssetModal">
+  <div class="modalbox" style="max-width:520px;width:94vw;text-align:left">
+    <div id="fsAssetBody"></div>
+  </div>
+</div>
+<div class="modal" id="fsBinModal">
+  <div class="modalbox" style="max-width:560px;width:94vw;max-height:80vh;overflow-y:auto;text-align:left">
+    <div id="fsBinBody"></div>
+  </div>
+</div>
 <div id="testCounter"></div>
 <div id="timerBadge" title="Drag to move &middot; tap to open" style="display:none;position:fixed;right:14px;bottom:64px;z-index:45;background:rgba(20,30,20,.92);border:1px solid #2e7d32;border-radius:9px;padding:5px 10px;color:#4caf50;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums;cursor:grab;touch-action:none;user-select:none"></div>
 
@@ -2652,7 +2663,7 @@ document.getElementById("btnPlans").onclick = () => {
 document.getElementById("plansClose").onclick = () => document.getElementById("plansModal").classList.remove("show");
 document.getElementById("planSaveNew").onclick = async () => {
   if (!img) { alert("Load a block plan first."); return; }
-  const name = window.prompt("Plan name (e.g. HNEH Ward 3 – Level 2):");
+  const name = window.prompt("Plan name (e.g. Main Building – Level 2):");
   if (!name || !name.trim()) return;
   const id = "p" + Date.now();
   await idbPut("proj:" + id, planSnapshot());
@@ -4577,8 +4588,10 @@ function fsRenderTab() {
       if (r.devices && r.devices.total) html += 'Devices tested: <b>' + r.devices.tested + ' / ' + r.devices.total + '</b> (' + fsEsc(String(r.year || "")) + ')<br>';
       (r.failsChecklist || []).forEach(x => { html += '<span style="color:#c62828">&#10007; ' + fsEsc(x.k) + '</span> ' + fsEsc(x.t.slice(0, 90)) + (x.note ? ' — <i>' + fsEsc(x.note) + '</i>' : '') + '<br>'; });
       (r.failedDevices || []).forEach(d => { html += '<span style="color:#c62828">&#10007; device</span> ' + fsEsc(d.type + (d.zone ? ' Z' + d.zone : '') + (d.dev ? ' D' + d.dev : '') + (d.info ? ' — ' + d.info : '')) + '<br>'; });
+      if ((r.spl || []).length) { html += 'SPL: ' + r.spl.map(x => fsEsc((x.loc || '?') + ' ' + (x.meas || '—') + '/' + (x.req || '—') + ' dBA')).join(' &middot; ') + '<br>'; }
       if (r.obs) html += 'Obs: ' + fsEsc(r.obs) + '<br>';
       html += '<span style="color:var(--fs-faint)">' + fsEsc(r.ref || '') + ' &middot; started ' + fsEsc((r.started || '').slice(0, 16).replace('T', ' ')) + '</span>';
+      html += '<div style="margin-top:6px"><button class="fsbtn fsHistPdf" data-id="' + fsEsc(r.id || '') + '" style="font-weight:700">&#128196; Save PDF</button></div>';
       html += '</div></details>';
     });
     html += '</div>';
@@ -4592,7 +4605,7 @@ function fsRenderTab() {
     open.forEach(d => {
       html += '<div style="border-top:1px solid var(--fs-border);padding:10px 0;display:flex;gap:10px;align-items:flex-start">' +
         '<div style="flex:1"><div style="font-size:14px;font-weight:600">' + fsEsc(d.desc) + '</div>' +
-        '<div style="font-size:12px;color:var(--fs-sub2)">' + fsEsc((d.created || "").slice(0, 10)) + ' &middot; ' + fsEsc(d.source || "") + '</div></div>' +
+        '<div style="font-size:12px;color:var(--fs-sub2)">' + fsEsc((d.created || "").slice(0, 10)) + ' &middot; ' + fsEsc(d.source || "") + (d.lastSeen ? ' &middot; <span style="color:#c62828">still failing ' + fsEsc(d.lastSeen) + '</span>' : '') + '</div></div>' +
         '<button class="fsbtn fsDefFix" data-id="' + fsEsc(d.id) + '" style="color:#1b8a3f;font-weight:700">&#10003; Rectified</button></div>';
     });
     if (closed.length) {
@@ -4632,6 +4645,13 @@ function fsRenderTab() {
       fsRenderTab();
     };
     document.getElementById("fsSitePhoto").onclick = () => { fsPhotoTarget = { kind:"site" }; document.getElementById("fsPhotoInput").click(); };
+  }
+
+  if (fsTab === "history") {
+    document.querySelectorAll(".fsHistPdf").forEach(b => b.onclick = () => {
+      const rec = (s.history || []).find(x => x.id === b.dataset.id);
+      if (rec) fsTestPdf(rec);
+    });
   }
 
   if (fsTab === "defects") {
@@ -4795,6 +4815,7 @@ function fsEnterWorkspace() {
   document.getElementById("fsReg").style.display = "none";
   document.getElementById("app").style.display = "flex";
   document.getElementById("fsSiteName").textContent = fsSite.name;
+  fsBinBtnRefresh();
   fsLoadChecklists().then(fsRestoreSession);
   resizeCanvas();
   tryRestoreAutosave();
@@ -4922,8 +4943,8 @@ function fsRenderTest() {
     if (openDef) html += '<div style="background:#3a2320;border:1px solid #c62828;border-radius:8px;padding:8px 12px;font-size:13.5px;color:#ff8a80;margin-bottom:10px">&#9888; ' + openDef + ' open defect' + (openDef > 1 ? 's' : '') + ' carried forward — check the Defects tab on the site page.</div>';
     html += '<label>Technician</label><input type="text" id="fsTechName" autocomplete="off" value="' + fsEsc(localStorage.getItem("fs-user") || "") + '">';
     html += '<label style="margin-top:10px">Test type</label><div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px">';
-    [["monthly", "Monthly"], ["sixMonthly", "6 Monthly"], ["annual", "Annual"]].forEach(([m, lbl]) => {
-      html += '<button class="btn fsModePick" data-mode="' + m + '" style="flex:1;min-width:110px;padding:14px 8px;font-size:15px;font-weight:700">' + lbl + '</button>';
+    Object.entries((fsChecklists && fsChecklists.modes) || {}).forEach(([m, md]) => {
+      html += '<button class="btn fsModePick" data-mode="' + fsEsc(m) + '" style="flex:1;min-width:110px;padding:14px 8px;font-size:15px;font-weight:700">' + fsEsc((md && md.label) || m) + '</button>';
     });
     html += '</div>';
     html += '<div style="font-size:12.5px;color:#999;margin-bottom:10px">' + fsEsc(fsCkSourceLabel()) + ' &nbsp; <a id="fsCkLoad" style="color:#4fc3f7;cursor:pointer">Load checklist file</a></div>';
@@ -4947,6 +4968,20 @@ function fsRenderTest() {
   if (fsSession.mode === "annual") {
     html += '<div style="font-weight:700;font-size:14px;margin-top:4px">Device progress — tap devices in Test mode (year ' + testYearSel + ')</div>';
     html += fsZoneTableHtml(fsZoneProgress(), def.deviceTargets);
+  }
+  if (fsSession.mode === "annual" || fsSession.mode === "fiveYearly") {
+    fsSession.spl = fsSession.spl || [];
+    html += '<div style="font-weight:700;font-size:14px;margin-top:10px">OWS SPL table — Required vs Measured dBA</div>';
+    html += '<div style="font-size:12px;color:#999;margin:2px 0 6px">Amplifier reference SPL locations (item 3.10 / E5.3). Import pulls dBA symbols from the plan (E= reading as Measured). Use the Sound meter (Tools tab) or dBA symbol Details to measure.</div>';
+    fsSession.spl.forEach((r, i) => {
+      const bad = r.req !== "" && r.meas !== "" && !isNaN(+r.req) && !isNaN(+r.meas) && (+r.meas < +r.req);
+      html += '<div style="display:flex;gap:6px;margin:4px 0;align-items:center">' +
+        '<input type="text" class="fsSplF" data-i="' + i + '" data-f="loc" placeholder="Location" value="' + fsEsc(r.loc || "") + '" style="flex:2;min-width:80px;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:7px;font-size:13px">' +
+        '<input type="text" class="fsSplF" data-i="' + i + '" data-f="req" placeholder="Req dBA" inputmode="decimal" value="' + fsEsc(r.req || "") + '" style="flex:0 0 76px;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:7px;font-size:13px">' +
+        '<input type="text" class="fsSplF" data-i="' + i + '" data-f="meas" placeholder="Meas dBA" inputmode="decimal" value="' + fsEsc(r.meas || "") + '" style="flex:0 0 76px;background:#1a1d21;border:1px solid ' + (bad ? '#c62828' : '#444') + ';border-radius:6px;color:' + (bad ? '#ff8a80' : '#e8e8e8') + ';padding:7px;font-size:13px">' +
+        '<button class="btn fsSplDel" data-i="' + i + '" style="padding:6px 9px;color:#ff8a80">&#10005;</button></div>';
+    });
+    html += '<div style="display:flex;gap:8px;margin:6px 0 2px"><button class="btn" id="fsSplAdd" style="font-size:13px">+ Add row</button><button class="btn" id="fsSplImport" style="font-size:13px">Import from dBA symbols</button></div>';
   }
   (def.sections || []).forEach((sec, si) => {
     html += '<div style="font-weight:700;font-size:14px;margin:12px 0 4px;color:#7ddb8f">' + fsEsc(sec.title) + '</div>';
@@ -4986,6 +5021,29 @@ function fsRenderTest() {
     fsSaveSession();
   });
   document.getElementById("fsObs").onchange = () => { fsSession.obs = document.getElementById("fsObs").value; fsSaveSession(); };
+  document.querySelectorAll(".fsSplF").forEach(inp => inp.onchange = () => {
+    const r = fsSession.spl[+inp.dataset.i];
+    if (r) { r[inp.dataset.f] = inp.value.trim(); fsSaveSession(); fsRenderTest(); }
+  });
+  document.querySelectorAll(".fsSplDel").forEach(b => b.onclick = () => {
+    fsSession.spl.splice(+b.dataset.i, 1); fsSaveSession(); fsRenderTest();
+  });
+  const splAdd = document.getElementById("fsSplAdd");
+  if (splAdd) splAdd.onclick = () => { fsSession.spl.push({ loc:"", req:"", meas:"" }); fsSaveSession(); fsRenderTest(); };
+  const splImp = document.getElementById("fsSplImport");
+  if (splImp) splImp.onclick = () => {
+    let added = 0;
+    allLevelObjects().forEach(e => {
+      const o = e.o;
+      if (o.kind !== "sym" || o.type !== "dba") return;
+      const loc = (o.info && o.info.trim()) || [o.zone && "Z" + o.zone, o.loop && "L" + o.loop, o.dev && "D" + o.dev].filter(Boolean).join(" ") || ("dBA — " + e.level);
+      if (fsSession.spl.some(r => r.loc === loc)) return;
+      fsSession.spl.push({ loc: loc, req: "", meas: (o.ve || "") });
+      added++;
+    });
+    if (!added) { alert("No new dBA symbols found on the plan (or all already imported).\nPlace dBA symbols (Fire tab) at amplifier reference locations first."); return; }
+    fsSaveSession(); fsRenderTest();
+  };
   document.getElementById("fsTestClose").onclick = fsCloseTest;
   document.getElementById("fsTestCancel").onclick = () => {
     if (!confirm("Cancel this test? Checklist answers will be discarded (device ticks stay on the plan).")) return;
@@ -5024,6 +5082,7 @@ function fsFinishTest() {
     checklist: { p: p, f: f, na: na, total: total, results: fsSession.results },
     devices: { tested: tested, total: devAll.length },
     zones: fsSession.mode === "annual" ? fsZoneProgress() : null,
+    spl: (fsSession.spl || []).filter(r => (r.loc || r.req || r.meas)),
     failsChecklist: fails, failedDevices: failedDev, obs: fsSession.obs || ""
   };
   const site = fsSite;
@@ -5031,17 +5090,26 @@ function fsFinishTest() {
   site.history.unshift(rec);
   site.defects = site.defects || [];
   const mkid = () => "d" + Date.now() + Math.random().toString(16).slice(2, 6);
-  fails.forEach(x => site.defects.push({ id: mkid(), created: rec.finished, source: def.label + " test", desc: "Checklist " + x.k + " failed: " + x.t + (x.note ? " — " + x.note : ""), closed: null }));
-  failedDev.forEach(d => site.defects.push({ id: mkid(), created: rec.finished, source: def.label + " test", desc: d.type + (d.zone ? " Z" + d.zone : "") + (d.dev ? " D" + d.dev : "") + (d.info ? " — " + d.info : "") + " (failed device, " + d.level + ")", closed: null }));
+  const openDefs = site.defects.filter(d => !d.closed);
+  let dedup = 0;
+  const addDef = (key, desc) => {
+    const ex = openDefs.find(d => (d.key && d.key === key) || (!d.key && d.desc === desc));
+    if (ex) { ex.lastSeen = rec.finished.slice(0, 10); ex.seen = (ex.seen || 1) + 1; dedup++; return; }
+    site.defects.push({ id: mkid(), key: key, created: rec.finished, source: def.label + " test", desc: desc, closed: null });
+  };
+  fails.forEach(x => addDef("ck:" + x.k, "Checklist " + x.k + " failed: " + x.t + (x.note ? " — " + x.note : "")));
+  failedDev.forEach(d => addDef("dev:" + d.level + ":" + d.type + ":" + (d.zone || "") + ":" + (d.loop || "") + ":" + (d.dev || ""),
+    d.type + (d.zone ? " Z" + d.zone : "") + (d.dev ? " D" + d.dev : "") + (d.info ? " — " + d.info : "") + " (failed device, " + d.level + ")"));
   site.testing = site.testing || {};
-  const map = { monthly: "lastMonthly", sixMonthly: "last6m", annual: "lastAnnual" };
-  site.testing[map[fsSession.mode]] = rec.finished.slice(0, 10);
+  const map = { monthly: "lastMonthly", sixMonthly: "last6m", annual: "lastAnnual", fiveYearly: "last5y" };
+  if (map[fsSession.mode]) site.testing[map[fsSession.mode]] = rec.finished.slice(0, 10);
   fsMarkDirty();
   fsClearSession();
   fsCloseTest();
   const openNow = site.defects.filter(d => !d.closed).length;
   alert("✓ " + def.label + " test recorded.\nChecklist: " + p + " pass · " + f + " fail · " + na + " N/A" +
     (devAll.length ? "\nDevices: " + tested + " / " + devAll.length + " tested (" + yr + ")" : "") +
+    (dedup ? "\n" + dedup + " already-open defect" + (dedup > 1 ? "s" : "") + " re-confirmed (no duplicates created)." : "") +
     (openNow ? "\nOpen defects now: " + openNow : "") +
     "\n\nRemember to Export register so colleagues get the record.");
 }
@@ -5065,6 +5133,245 @@ document.getElementById("fsCkInput").addEventListener("change", e => {
   };
   rd.readAsText(file);
 });
+
+/* ---------- Pass 2B: registered asset locking + Replace/Delete + site recycle bin ---------- */
+function fsIsRegisteredAsset(o) {
+  return o.kind === "sym" && (((o.ty || []).length > 0) ||
+    (o.zone && String(o.zone).trim()) || (o.loop && String(o.loop).trim()) || (o.dev && String(o.dev).trim()));
+}
+function fsBinList() { if (!fsSite) return []; fsSite.recycle = fsSite.recycle || []; return fsSite.recycle; }
+function fsAssetLabel(o) {
+  const t = TYPE_MAP[o.type];
+  return (t ? t.label : o.type) + (o.zone ? " Z" + o.zone : "") + (o.loop ? " L" + o.loop : "") + (o.dev ? " D" + o.dev : "") +
+    ((o.ty || []).length ? " · tested " + o.ty.join(", ") : "");
+}
+function fsArchiveAsset(o, reason) {
+  fsBinList().unshift({
+    id: "r" + Date.now() + Math.random().toString(16).slice(2, 5),
+    when: new Date().toISOString(), reason: reason,
+    level: (levels[curLevel] && levels[curLevel].name) || "Level " + (curLevel + 1),
+    obj: JSON.parse(JSON.stringify(o))
+  });
+}
+function fsBinBtnRefresh() {
+  const b = document.getElementById("fsBinBtn");
+  if (!b) return;
+  const n = (fsSite && fsSite.recycle || []).length;
+  b.innerHTML = "&#128465; Bin" + (n ? " (" + n + ")" : "");
+}
+const fsOrigDel = btnDel.onclick;
+btnDel.onclick = () => {
+  if (!fsSiteCtx || !selection.length) { fsOrigDel(); return; }
+  const locked = selection.filter(fsIsRegisteredAsset);
+  if (!locked.length) { fsOrigDel(); return; }
+  const testRunning = fsSession && (fsSession.mode === "annual" || fsSession.mode === "fiveYearly");
+  if (!testRunning) {
+    alert("🔒 Selection includes " + locked.length + " registered device" + (locked.length > 1 ? "s" : "") + " (has zone/loop/device no. or test history).\n\nRegistered assets can only be replaced or deleted during an Annual or 5 Yearly test session — tap ▶ Start test first. Unregistered markup deletes normally.");
+    return;
+  }
+  fsAssetDialog(locked);
+};
+function fsAssetDialog(locked) {
+  const box = document.getElementById("fsAssetBody");
+  let html = '<h3 style="margin-bottom:8px">Registered device' + (locked.length > 1 ? 's' : '') + ' selected</h3>';
+  html += '<div style="font-size:13px;color:#bbb;margin-bottom:10px;max-height:130px;overflow-y:auto">' + locked.map(o => fsEsc(fsAssetLabel(o))).join('<br>') + '</div>';
+  html += '<div style="font-size:13px;color:#999;margin-bottom:12px"><b>Replace</b> keeps position and Z/L/D details but starts a fresh device (no test ticks) — the old device goes to the site recycle bin with its history. <b>Delete</b> moves it to the recycle bin. Both can be restored from 🗑 Bin.</div>';
+  html += '<div class="row" style="display:flex;gap:8px;flex-wrap:wrap">';
+  html += '<button class="btn" id="fsAssetCancel">Cancel</button><span style="flex:1"></span>';
+  html += '<button class="btn danger" id="fsAssetDelete">Delete to bin</button>';
+  html += '<button class="btn" id="fsAssetReplace" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">Replace (new device)</button></div>';
+  box.innerHTML = html;
+  document.getElementById("fsAssetModal").classList.add("show");
+  const close = () => document.getElementById("fsAssetModal").classList.remove("show");
+  document.getElementById("fsAssetCancel").onclick = close;
+  document.getElementById("fsAssetDelete").onclick = () => {
+    close(); pushUndo();
+    locked.forEach(o => fsArchiveAsset(o, "deleted"));
+    objects = objects.filter(o => !selection.includes(o));
+    clearSelection(); draw(); fsMarkDirty(); fsBinBtnRefresh();
+  };
+  document.getElementById("fsAssetReplace").onclick = () => {
+    close(); pushUndo();
+    const reps = locked.map(o => {
+      fsArchiveAsset(o, "replaced");
+      const c = JSON.parse(JSON.stringify(o));
+      c.ty = []; c.failed = false; c.info = "";
+      return c;
+    });
+    objects = objects.filter(o => !selection.includes(o));
+    objects.push(...reps);
+    setSelection(reps); draw(); fsMarkDirty(); fsBinBtnRefresh();
+  };
+}
+document.getElementById("fsBinBtn").onclick = () => { fsRenderBin(); document.getElementById("fsBinModal").classList.add("show"); };
+function fsRenderBin() {
+  const box = document.getElementById("fsBinBody");
+  const bin = fsBinList();
+  let html = '<h3 style="margin-bottom:8px">Site recycle bin' + (fsSiteCtx ? ' — ' + fsEsc(fsSiteCtx.siteName) : '') + '</h3>';
+  if (!bin.length) html += '<div style="color:#999;font-size:13.5px;margin-bottom:10px">Empty. Registered devices you Replace or Delete during an Annual / 5 Yearly test end up here and can be restored.</div>';
+  bin.forEach(ent => {
+    html += '<div style="border-top:1px solid #3a3f46;padding:9px 0;display:flex;gap:10px;align-items:center">' +
+      '<div style="flex:1;font-size:13px"><b>' + fsEsc(fsAssetLabel(ent.obj)) + '</b>' +
+      '<div style="font-size:12px;color:#999">' + fsEsc(ent.reason) + ' ' + fsEsc((ent.when || "").slice(0, 10)) + ' · ' + fsEsc(ent.level || "") + '</div></div>' +
+      '<button class="btn fsBinRestore" data-id="' + fsEsc(ent.id) + '" style="color:#7ddb8f;font-weight:700">Restore</button>' +
+      '<button class="btn danger fsBinPurge" data-id="' + fsEsc(ent.id) + '">&#10005;</button></div>';
+  });
+  html += '<div class="row" style="margin-top:12px"><button class="btn" id="fsBinClose">Close</button></div>';
+  box.innerHTML = html;
+  document.getElementById("fsBinClose").onclick = () => document.getElementById("fsBinModal").classList.remove("show");
+  document.querySelectorAll(".fsBinRestore").forEach(b => b.onclick = () => {
+    const bin2 = fsBinList();
+    const i = bin2.findIndex(x => x.id === b.dataset.id);
+    if (i < 0) return;
+    const ent = bin2[i];
+    const curName = (levels[curLevel] && levels[curLevel].name) || "Level " + (curLevel + 1);
+    if (ent.level && ent.level !== curName && !confirm("This device was on “" + ent.level + "” — restore onto the current level (" + curName + ")?")) return;
+    pushUndo();
+    objects.push(JSON.parse(JSON.stringify(ent.obj)));
+    bin2.splice(i, 1);
+    draw(); fsMarkDirty(); fsBinBtnRefresh(); fsRenderBin();
+  });
+  document.querySelectorAll(".fsBinPurge").forEach(b => b.onclick = () => {
+    if (!confirm("Delete forever? This removes the device and its history from the bin.")) return;
+    const bin2 = fsBinList();
+    const i = bin2.findIndex(x => x.id === b.dataset.id);
+    if (i >= 0) { bin2.splice(i, 1); fsMarkDirty(); fsBinBtnRefresh(); fsRenderBin(); }
+  });
+}
+
+/* ---------- Pass 2B: per-session test record PDF ---------- */
+function fsCanvasesToPdf(canvases) {
+  const enc = new TextEncoder();
+  const parts = [], offsets = [];
+  let pos = 0;
+  function push(x) { const b = typeof x === "string" ? enc.encode(x) : x; parts.push(b); pos += b.length; }
+  function beginObj() { offsets.push(pos); }
+  const n = canvases.length;
+  push("%PDF-1.4\n");
+  beginObj(); push("1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n");
+  const kids = canvases.map((c, i) => (3 + i * 3) + " 0 R").join(" ");
+  beginObj(); push("2 0 obj << /Type /Pages /Kids [" + kids + "] /Count " + n + " >> endobj\n");
+  canvases.forEach((cv, i) => {
+    const W = cv.width, H = cv.height;
+    const jb = atob(cv.toDataURL("image/jpeg", 0.9).split(",")[1]);
+    const jpeg = new Uint8Array(jb.length);
+    for (let k = 0; k < jb.length; k++) jpeg[k] = jb.charCodeAt(k);
+    const pgObj = 3 + i * 3, imObj = pgObj + 1, ctObj = pgObj + 2;
+    beginObj(); push(pgObj + " 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 " + W + " " + H + "] /Resources << /XObject << /Im" + i + " " + imObj + " 0 R >> >> /Contents " + ctObj + " 0 R >> endobj\n");
+    beginObj();
+    push(imObj + " 0 obj << /Type /XObject /Subtype /Image /Width " + W + " /Height " + H + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + jpeg.length + " >> stream\n");
+    push(jpeg);
+    push("\nendstream endobj\n");
+    const content = "q " + W + " 0 0 " + H + " 0 0 cm /Im" + i + " Do Q";
+    beginObj(); push(ctObj + " 0 obj << /Length " + content.length + " >> stream\n" + content + "\nendstream endobj\n");
+  });
+  const total = 3 + n * 3;
+  const xrefPos = pos;
+  let xref = "xref\n0 " + total + "\n0000000000 65535 f \n";
+  offsets.forEach(o => { xref += String(o).padStart(10, "0") + " 00000 n \n"; });
+  push(xref);
+  push("trailer << /Size " + total + " /Root 1 0 R >>\nstartxref\n" + xrefPos + "\n%%EOF");
+  return new Blob(parts, { type: "application/pdf" });
+}
+function fsTestPdf(rec) {
+  const lines = [];
+  const L = (k, t) => lines.push([k, t]);
+  L("h", (rec.label || rec.mode) + " test record — " + ((rec.finished || "").slice(0, 10)));
+  L("t", "Site: " + (fsSite ? fsSite.name : "") + (fsClient ? "   ·   Client: " + fsClient.name : ""));
+  if (fsSite && fsSite.address) L("t", "Address: " + fsSite.address);
+  L("t", (rec.ref ? rec.ref + "   ·   " : "") + "Started " + ((rec.started || "").slice(0, 16).replace("T", " ")) + "   ·   Finished " + ((rec.finished || "").slice(0, 16).replace("T", " ")));
+  if (rec.tech) L("t", "Technician: " + rec.tech);
+  if (rec.checklist) {
+    L("h2", "Summary");
+    L("b", "Checklist: " + rec.checklist.p + " pass · " + rec.checklist.f + " fail · " + rec.checklist.na + " N/A (of " + rec.checklist.total + " items)");
+    if (rec.devices && rec.devices.total) L("b", "Devices tested: " + rec.devices.tested + " / " + rec.devices.total + (rec.year ? " (year " + rec.year + ")" : ""));
+  }
+  if (rec.zones && Object.keys(rec.zones).length) {
+    L("h2", "Per-zone device testing (50% smokes / 20% thermals)");
+    Object.keys(rec.zones).sort((a, b) => a === "Unzoned" ? 1 : b === "Unzoned" ? -1 : a.localeCompare(b, undefined, { numeric:true })).forEach(z => {
+      const v = rec.zones[z];
+      L("t", "Zone " + z + " — smokes " + v.s[0] + "/" + v.s[1] + " (need " + Math.ceil(v.s[1] * 0.5) + "), thermals " + v.t[0] + "/" + v.t[1] + " (need " + Math.ceil(v.t[1] * 0.2) + ")");
+    });
+  }
+  if ((rec.spl || []).length) {
+    L("h2", "OWS SPL — Required vs Measured dBA");
+    rec.spl.forEach(r => {
+      const bad = r.req !== "" && r.meas !== "" && !isNaN(+r.req) && !isNaN(+r.meas) && (+r.meas < +r.req);
+      L(bad ? "f" : "t", (r.loc || "(location)") + " — required " + (r.req || "—") + " dBA, measured " + (r.meas || "—") + " dBA" + (bad ? "  ✗ BELOW REQUIRED" : ""));
+    });
+  }
+  if ((rec.failsChecklist || []).length || (rec.failedDevices || []).length) {
+    L("h2", "Fails / defects raised");
+    (rec.failsChecklist || []).forEach(x => L("f", "✗ " + x.k + " — " + x.t + (x.note ? " — " + x.note : "")));
+    (rec.failedDevices || []).forEach(d => L("f", "✗ Device — " + d.type + (d.zone ? " Z" + d.zone : "") + (d.loop ? " L" + d.loop : "") + (d.dev ? " D" + d.dev : "") + (d.info ? " — " + d.info : "") + " (" + d.level + ")"));
+  }
+  L("h2", "Checklist results");
+  const def = fsChecklists && fsChecklists.modes && fsChecklists.modes[rec.mode];
+  const results = (rec.checklist && rec.checklist.results) || {};
+  const seen = {};
+  if (def && (def.sections || []).length) {
+    (def.sections || []).forEach(sec => {
+      const secLines = [];
+      (sec.items || []).forEach(it => {
+        const r = results[it.k];
+        if (!r || !r.r) return;
+        seen[it.k] = 1;
+        secLines.push([r.r === "F" ? "f" : "t", (r.r === "F" ? "✗" : r.r === "P" ? "✓" : "–") + " " + it.k + " [" + r.r + "]  " + it.t + (r.note ? " — " + r.note : "")]);
+      });
+      if (secLines.length) { L("b", sec.title); secLines.forEach(x => lines.push(x)); }
+    });
+  }
+  Object.entries(results).forEach(([k, r]) => {
+    if (seen[k] || !r || !r.r) return;
+    L(r.r === "F" ? "f" : "t", (r.r === "F" ? "✗" : r.r === "P" ? "✓" : "–") + " " + k + " [" + r.r + "]" + (r.note ? " — " + r.note : ""));
+  });
+  if (rec.obs) {
+    L("h2", "Observations / comments");
+    String(rec.obs).split("\n").forEach(x => L("t", x));
+  }
+
+  const W = 1240, H = 1754, margin = 74, maxW = W - margin * 2;
+  const sizes = { h: 34, h2: 25, b: 20, t: 18, f: 18 };
+  const meas = document.createElement("canvas").getContext("2d");
+  const wrapped = [];
+  lines.forEach(([k, txt]) => {
+    meas.font = (k === "t" || k === "f" ? "" : "bold ") + sizes[k] + "px system-ui, sans-serif";
+    const words = String(txt).split(" ");
+    let cur = "";
+    words.forEach(w => {
+      const t2 = cur ? cur + " " + w : w;
+      if (meas.measureText(t2).width > maxW && cur) { wrapped.push([k, cur]); cur = "  " + w; }
+      else cur = t2;
+    });
+    wrapped.push([k, cur]);
+  });
+  const pages = [];
+  let cv = null, cx = null, y = 0;
+  const newPage = () => {
+    cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    cx = cv.getContext("2d");
+    cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, W, H);
+    pages.push(cv); y = margin;
+  };
+  newPage();
+  wrapped.forEach(([k, txt]) => {
+    const extra = (k === "h2" ? 16 : 0);
+    if (y + sizes[k] + extra > H - margin) newPage();
+    y += extra;
+    cx.fillStyle = k === "f" ? "#b71c1c" : (k === "t" ? "#333333" : "#000000");
+    cx.font = (k === "t" || k === "f" ? "" : "bold ") + sizes[k] + "px system-ui, sans-serif";
+    cx.textBaseline = "top";
+    cx.fillText(txt, margin, y);
+    if (k === "h") { cx.fillRect(margin, y + sizes[k] + 6, maxW, 3); y += 10; }
+    y += sizes[k] + 8;
+  });
+  pages.forEach((pg, i) => {
+    const c2 = pg.getContext("2d");
+    c2.fillStyle = "#888888"; c2.font = "16px system-ui, sans-serif"; c2.textBaseline = "top";
+    c2.fillText("FireSpark test record — page " + (i + 1) + " of " + pages.length, margin, H - 40);
+  });
+  deliverFile(fsCanvasesToPdf(pages), "test-" + (rec.mode || "record") + "-" + ((rec.finished || "").slice(0, 10) || "record") + ".pdf", "application/pdf");
+}
 
 (async () => {
   try {
