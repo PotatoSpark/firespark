@@ -94,9 +94,17 @@
   .modebtn.testmode.active { border-color:#4caf50; background:#1f5c2e; }
   .modebtn.testmode .dot { display:none; width:9px; height:9px; border-radius:50%; background:#39e75f; margin-left:6px; box-shadow:0 0 7px #39e75f; vertical-align:middle; }
   .modebtn.testmode.active .dot { display:inline-block; }
-  #testCounter { position:fixed; top:0; left:50%; transform:translateX(-50%); z-index:44; display:none; background:rgba(23,52,32,.95); border:1px solid #2e7d32; border-bottom-left-radius:10px; border-bottom-right-radius:10px; color:#7ddb8f; font-weight:800; font-size:14.5px; padding:7px 16px; pointer-events:none; }
+  #testCounter { position:fixed; top:0; left:50%; transform:translateX(-50%); z-index:44; display:none; background:rgba(23,52,32,.95); border:1px solid #2e7d32; border-radius:0 0 10px 10px; color:#7ddb8f; font-weight:800; font-size:14.5px; padding:7px 16px; }
   .btn.levels { background:#2b3a55; border-color:#48639c; }
   #btnMulti.active { border-color:#ff5a3c; background:#3a2b27; }
+  body.focusmode #topbar, body.focusmode #sideTabs, body.focusmode #palette,
+  body.focusmode #toolrow, body.focusmode #bottombar { display:none !important; }
+  #focusBar { display:none; position:fixed; top:8px; left:8px; z-index:46; gap:5px; align-items:center;
+    background:rgba(22,26,30,.9); border:1px solid #444; border-radius:12px; padding:5px 6px; }
+  body.focusmode #focusBar { display:flex; }
+  #focusBar .modebtn { padding:3px 8px; min-width:44px; font-size:15px; }
+  #focusBar .btn { padding:6px 9px; }
+  #testCounter { cursor:grab; touch-action:none; user-select:none; pointer-events:auto; }
   #toolTip { position:fixed; display:none; z-index:99; background:#0d0f12; color:#fff; border:1px solid #556; border-radius:8px; padding:6px 10px; font-size:12.5px; max-width:250px; pointer-events:none; box-shadow:0 3px 12px rgba(0,0,0,.5); }
 </style>
 </head>
@@ -129,7 +137,7 @@
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
       <span style="font-size:21px;font-weight:800;color:#c8340f;display:inline-flex;align-items:center;gap:8px"><img src="icon-192.png" style="width:26px;height:26px;border-radius:6px" alt=""> FIRESPARK</span>
-      <span style="font-size:11px;color:#7c8a91">v0.7 beta</span>
+      <span style="font-size:11px;color:#7c8a91">v0.8 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsThemeBtn" title="Light / dark">&#127765;</button>
       <button class="fsbtn" id="fsExportReg" style="display:none">&#128190; Export register</button>
@@ -168,7 +176,7 @@
   <div id="topbar">
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.7 beta</span></span>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.8 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -202,9 +210,19 @@
     <div class="modebtn testmode" id="mode-test" title="Test mode — tap in and out; tap devices to mark them tested"><span>&#10003;<span class="dot"></span></span><span class="lbl">Test mode</span></div>
     <button class="btn bigur" id="btnUndo" title="Undo (Ctrl+Z)">&#8630;</button>
     <button class="btn bigur" id="btnRedo" title="Redo (Ctrl+Y)">&#8631;</button>
+    <span style="flex:1"></span>
+    <button class="btn bigur" id="btnFocus" title="Focus — hide all bars and maximise the plan">&#x26F6;</button>
   </div>
   <div id="palette"></div>
 
+  <div id="focusBar">
+    <button class="btn" id="focusExit" title="Exit focus">&#x26F6; Exit</button>
+    <div class="modebtn" id="focus-pan"><span>&#9995;</span></div>
+    <div class="modebtn" id="focus-select"><span>&#10548;</span></div>
+    <div class="modebtn testmode" id="focus-test"><span>&#10003;</span></div>
+    <button class="btn" id="focusUndo" title="Undo">&#8630;</button>
+    <button class="btn" id="focusRedo" title="Redo">&#8631;</button>
+  </div>
   <div id="stage">
     <canvas id="cv"></canvas>
     <div id="dropHint">
@@ -229,6 +247,7 @@
       <select id="testYear" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px">
         <option>2026</option><option>2027</option><option>2028</option><option>2029</option>
       </select>
+      <label style="display:flex;align-items:center;gap:4px;margin-left:6px"><input type="checkbox" id="testCounterOn" checked style="width:16px;height:16px"> counter</label>
     </div>
     <div id="alphaWrap" style="display:none;align-items:center;gap:5px;font-size:12px;color:#aaa">Opacity <input type="range" id="alphaSlider" min="10" max="100" value="40" style="width:80px"></div>
     <button class="btn info" id="btnDetails" disabled title="Zone / loop / device details">&#9432; Details</button>
@@ -2044,9 +2063,12 @@ function buildPalette() {
 
 function updateTestCounter() {
   const el = document.getElementById("testCounter");
-  if (activeTool !== "test" || !img) { el.style.display = "none"; return; }
-  const tb = document.getElementById("topbar");
-  el.style.top = (tb ? tb.offsetHeight : 44) + "px";
+  const cbEl = document.getElementById("testCounterOn");
+  if (activeTool !== "test" || !img || (cbEl && !cbEl.checked)) { el.style.display = "none"; return; }
+  if (!el.dataset.moved) {
+    const tb = document.getElementById("topbar");
+    el.style.top = (document.body.classList.contains("focusmode") ? 0 : (tb ? tb.offsetHeight : 44)) + "px";
+  }
   const syms = objects.filter(o => o.kind === "sym");
   const done = syms.filter(o => (o.ty || []).includes(+testYearSel)).length;
   el.textContent = "\u2713 " + done + " / " + syms.length + " tested (" + testYearSel + (levels.length > 1 ? ", this level" : "") + ")";
@@ -2060,6 +2082,7 @@ function setTool(id) {
   document.getElementById("mode-select").classList.toggle("active", id === "select");
   document.getElementById("mode-test").classList.toggle("active", id === "test");
   updateTestCounter();
+  if (typeof syncFocusBar === "function") syncFocusBar();
   document.getElementById("testWrap").style.display = id === "test" ? "flex" : "none";
   if (id === "test") clearSelection();
   document.querySelectorAll(".pal").forEach(p => p.classList.remove("active"));
@@ -3660,12 +3683,12 @@ document.getElementById("dPhotoInput").addEventListener("change", e => {
   reader.onload = () => {
     const im = new Image();
     im.onload = () => {
-      const mx = 320;
+      const mx = 1600;
       const sc = Math.min(1, mx / Math.max(im.naturalWidth, im.naturalHeight));
       const c = document.createElement("canvas");
       c.width = Math.round(im.naturalWidth * sc); c.height = Math.round(im.naturalHeight * sc);
       c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
-      detailsPhoto = c.toDataURL("image/jpeg", 0.8);
+      detailsPhoto = c.toDataURL("image/jpeg", 0.82);
       const ph = document.getElementById("dPhotoPreview");
       ph.src = detailsPhoto; ph.style.display = "block";
       document.getElementById("dPhotoRemove").style.display = "inline-block";
@@ -3998,6 +4021,71 @@ document.getElementById("btnFit").onclick = fitView;
 document.getElementById("btnUndo").onclick = undo;
 document.getElementById("btnRedo").onclick = redo;
 
+/* ---- focus mode ---- */
+function setFocusMode(on) {
+  document.body.classList.toggle("focusmode", on);
+  resizeCanvas();
+  syncFocusBar();
+  draw();
+}
+function syncFocusBar() {
+  ["pan", "select", "test"].forEach(m => {
+    const src = document.getElementById("mode-" + m), dst = document.getElementById("focus-" + m);
+    if (src && dst) dst.classList.toggle("active", src.classList.contains("active"));
+  });
+}
+document.getElementById("btnFocus").onclick = () => setFocusMode(true);
+document.getElementById("focusExit").onclick = () => setFocusMode(false);
+["pan", "select", "test"].forEach(m => {
+  document.getElementById("focus-" + m).onclick = () => { document.getElementById("mode-" + m).click(); syncFocusBar(); };
+});
+document.getElementById("focusUndo").onclick = () => document.getElementById("btnUndo").click();
+document.getElementById("focusRedo").onclick = () => document.getElementById("btnRedo").click();
+
+/* ---- test counter: on/off pref + draggable ---- */
+(function () {
+  const cb = document.getElementById("testCounterOn");
+  try { if (localStorage.getItem("bpm-testcounter") === "0") cb.checked = false; } catch (e) {}
+  cb.onchange = () => {
+    try { localStorage.setItem("bpm-testcounter", cb.checked ? "1" : "0"); } catch (e) {}
+    updateTestCounter();
+  };
+  const el = document.getElementById("testCounter");
+  let start = null, moved = false;
+  try {
+    const p = JSON.parse(localStorage.getItem("bpm-counter-pos") || "null");
+    if (p && p.x != null) { el.style.left = p.x + "px"; el.style.top = p.y + "px"; el.style.transform = "none"; el.style.borderRadius = "10px"; el.dataset.moved = "1"; }
+  } catch (e) {}
+  el.addEventListener("pointerdown", e => {
+    el.setPointerCapture(e.pointerId);
+    const r = el.getBoundingClientRect();
+    start = { px: e.clientX, py: e.clientY, x: r.left, y: r.top };
+    moved = false;
+    e.preventDefault();
+  });
+  el.addEventListener("pointermove", e => {
+    if (!start) return;
+    const dx = e.clientX - start.px, dy = e.clientY - start.py;
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) moved = true;
+    if (moved) {
+      const r = el.getBoundingClientRect();
+      const nx = Math.max(2, Math.min(window.innerWidth - r.width - 2, start.x + dx));
+      const ny = Math.max(2, Math.min(window.innerHeight - r.height - 2, start.y + dy));
+      el.style.left = nx + "px"; el.style.top = ny + "px";
+      el.style.transform = "none"; el.style.borderRadius = "10px";
+      el.dataset.moved = "1";
+    }
+  });
+  el.addEventListener("pointerup", () => {
+    if (start && moved) {
+      const r = el.getBoundingClientRect();
+      try { localStorage.setItem("bpm-counter-pos", JSON.stringify({ x: r.left, y: r.top })); } catch (e) {}
+    }
+    start = null; moved = false;
+  });
+  el.addEventListener("pointercancel", () => { start = null; moved = false; });
+})();
+
 /* ---- tool tips: hover on PC, press & hold on tablet/phone ---- */
 (function () {
   const tip = document.createElement("div");
@@ -4229,10 +4317,65 @@ function fsShow(view) {
 function fsEsc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
 
 function fsEnsureIds() {
+  let migrated = false;
   (fsRegister.clients || []).forEach((c, ci) => {
     if (!c.id) c.id = "c" + ci;
-    (c.sites || []).forEach((s, si) => { if (!s.id) s.id = c.id + "_s" + si; });
+    (c.sites || []).forEach((s, si) => {
+      if (!s.id) s.id = c.id + "_s" + si;
+      if (fsMigrateLegacy(s)) migrated = true;
+    });
   });
+  if (migrated) { fsDirty = true; idbPut("fsRegister", fsRegister).catch(() => {}); }
+}
+
+/* Map old register fields{} / panelInstructions / additionalInfo into the new
+   Access / Contacts / Further info / Site Equipment fields. Originals are kept. */
+function fsMigrateLegacy(s) {
+  if (s._migr) return false;
+  s._migr = 1;
+  let changed = false;
+  const app = (prop, label, val) => {
+    if (!val) return;
+    const line = (label ? label + ": " : "") + val;
+    if ((s[prop] || "").includes(val)) return;
+    s[prop] = s[prop] ? s[prop] + "\n" + line : line;
+    changed = true;
+  };
+  const eq = (key, label, val) => {
+    if (!val) return;
+    s.equipment = s.equipment || {};
+    const cur = s.equipment[key] || {};
+    if ((cur.v || "").includes(val)) return;
+    const line = (label ? label + ": " : "") + val;
+    cur.v = cur.v ? cur.v + "\n" + line : line;
+    s.equipment[key] = cur;
+    changed = true;
+  };
+  Object.entries(s.fields || {}).forEach(([k, v]) => {
+    if (v == null || v === "") return;
+    v = String(v);
+    const lk = k.toLowerCase();
+    if (/address/.test(lk)) { if (!s.address) { s.address = v; changed = true; } return; }
+    if (/access|induction|key|sign.?in|swipe|entry/.test(lk)) return app("access", k, v);
+    if (/contact|phone|mobile|email|\bfm\b|manager/.test(lk)) return app("contacts", k, v);
+    if (/panel.*loc|fip.*loc|location.*(panel|fip)/.test(lk)) return eq("Panel location", "", v);
+    if (/panel.*type|fip.*type|\bcie\b/.test(lk)) return eq("Panel type", "", v);
+    if (/batter/.test(lk)) return eq("Panel battery type / size", "", v);
+    if (/ewis|warden/.test(lk)) return eq("EWIS location", k, v);
+    if (/\bows\b|speaker|sound/.test(lk)) return eq("OWS / speaker notes", k, v);
+    if (/exting/.test(lk)) return eq("Fire extinguisher locations", "", v);
+    if (/hose/.test(lk)) return eq("Hose reel locations", "", v);
+    if (/hydrant|booster/.test(lk)) return eq("Hydrant / booster location", "", v);
+    if (/pump/.test(lk)) return eq("Pump room location", "", v);
+    if (/sprinkler|valve/.test(lk)) return eq("Sprinkler valve room", "", v);
+    if (/light/.test(lk)) return eq("Emergency lighting notes", k, v);
+    if (/gas|suppress/.test(lk)) return eq("Gas suppression", k, v);
+    if (/panel|fip/.test(lk)) return eq("Panel location", k, v);
+    app("furtherInfo", k, v);
+  });
+  if (s.panelInstructions) app("furtherInfo", "Panel instructions", s.panelInstructions);
+  if (s.additionalInfo) app("furtherInfo", "", s.additionalInfo);
+  return changed;
 }
 function fsMarkDirty() { fsDirty = true; fsStamp(); idbPut("fsRegister", fsRegister).catch(() => {}); }
 function fsStamp() {
