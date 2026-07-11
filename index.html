@@ -1,0 +1,4188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FireSpark">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#23272d">
+<title>FireSpark</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:#1a1d21; color:#e8e8e8; }
+  #app { display:flex; flex-direction:column; height:100%; }
+
+  #topbar { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#23272d; border-bottom:1px solid #333; flex-wrap:wrap; }
+  #topbar .title { font-weight:700; font-size:13px; color:#ff5a3c; margin-right:4px; white-space:nowrap; }
+  .btn { border:1px solid #444; background:#2e333a; color:#e8e8e8; border-radius:8px; padding:7px 10px; font-size:13px; cursor:pointer; touch-action:manipulation; user-select:none; text-decoration:none; display:inline-block; }
+  .btn:active { background:#3a414a; }
+  .btn.primary { background:#ff5a3c; border-color:#ff5a3c; color:#fff; font-weight:600; }
+  .btn.primary:active { background:#e04b30; }
+  .btn.toggled { background:#3a5f3a; border-color:#5a8f5a; }
+  .btn:disabled { opacity:.35; cursor:default; }
+  .btn.report { background:#0057d8; border-color:#0057d8; color:#fff; font-weight:600; }
+  .btn.report:active { background:#0046ad; }
+  .btn.bigur { font-size:22px; padding:6px 18px; align-self:center; }
+  .btn.danger { border-color:#c62828; color:#ff8a80; font-weight:600; }
+  .btn.danger:not(:disabled):active { background:#4a1f1f; }
+  .btn.info { border-color:#0057d8; color:#8ab4ff; font-weight:600; }
+  .btn.info:not(:disabled):active { background:#1c2c4a; }
+  input[type=file] { display:none; }
+
+  #midRow { display:flex; flex:1; min-height:0; }
+  #sideTabs { width:56px; background:#23272d; border-right:1px solid #333; overflow-y:auto; display:flex; flex-direction:column; gap:3px; padding:5px 3px; flex:0 0 auto; }
+  #centerCol { flex:1; display:flex; flex-direction:column; min-width:0; }
+  #toolrow { display:flex; align-items:stretch; gap:6px; padding:6px 10px 0 10px; background:#23272d; }
+  .modebtn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; border:2px solid transparent; background:#2e333a; border-radius:10px; padding:4px 10px; cursor:pointer; user-select:none; touch-action:manipulation; font-size:17px; min-width:52px; }
+  .modebtn .lbl { font-size:9px; color:#aaa; }
+  .modebtn.active { border-color:#ff5a3c; background:#3a2b27; }
+  .tab { display:flex; flex-direction:column; align-items:center; gap:1px; padding:7px 2px; font-size:9px; color:#aaa; background:#262a30; border:1px solid #333; border-radius:9px; cursor:pointer; user-select:none; touch-action:manipulation; text-align:center; }
+  .tab .ti { font-size:19px; line-height:1; }
+  .tab.active { color:#fff; background:#3a2b27; border-color:#ff5a3c; font-weight:600; }
+
+  #palette { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#31363d; border-bottom:1px solid #333; overflow-x:auto; -webkit-overflow-scrolling:touch; min-height:74px; }
+  .pal { display:flex; flex-direction:column; align-items:center; gap:2px; border:2px solid transparent; background:#262a30; border-radius:10px; padding:5px 8px; cursor:pointer; min-width:58px; user-select:none; touch-action:none; flex:0 0 auto; }
+  .pal.lift { border-color:#00e5ff; box-shadow:0 4px 14px rgba(0,0,0,.6); z-index:5; position:relative; opacity:.92; }
+  .pal.active { border-color:#ff5a3c; background:#3a2b27; }
+  .pal canvas { width:34px; height:34px; }
+  .pal .sym { width:34px; height:34px; display:flex; align-items:center; justify-content:center; font-size:20px; }
+  .pal .lbl { font-size:9px; color:#aaa; white-space:nowrap; }
+  .pal .cnt { font-size:11px; font-weight:700; color:#ffb3a3; min-height:13px; }
+
+  #stage { flex:1; position:relative; overflow:hidden; background:#101214; }
+  #cv { position:absolute; top:0; left:0; touch-action:none; }
+  #dropHint { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; color:#888; text-align:center; padding:20px; pointer-events:none; }
+  #dropHint .big { font-size:17px; color:#ccc; }
+  #dropHint.hidden { display:none; }
+
+  #bottombar { display:flex; align-items:center; gap:8px; padding:7px 10px; background:#23272d; border-top:1px solid #333; flex-wrap:wrap; }
+  #sizeWrap { display:flex; align-items:center; gap:5px; font-size:12px; color:#aaa; }
+  #sizeWrap input { width:90px; }
+  #swatches { display:flex; align-items:center; gap:5px; }
+  .swatch { width:22px; height:22px; border-radius:50%; border:2px solid #555; cursor:pointer; flex:0 0 auto; }
+  .swatch.active { border-color:#fff; box-shadow:0 0 0 2px #ff5a3c; }
+  .spacer { flex:1; }
+  #status { font-size:11px; color:#888; width:100%; }
+
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.75); display:none; align-items:center; justify-content:center; z-index:60; padding:16px; }
+  .modal.show { display:flex; }
+  .modalbox { background:#262a30; border:1px solid #444; border-radius:12px; padding:18px; max-width:420px; width:100%; max-height:80vh; overflow-y:auto; }
+  .modalbox h3 { font-size:15px; margin-bottom:12px; color:#ff8a70; }
+  .modalbox label { display:block; font-size:12px; color:#aaa; margin:8px 0 3px; }
+  .modalbox input[type=text] { width:100%; background:#1a1d21; border:1px solid #444; border-radius:6px; color:#e8e8e8; padding:8px; font-size:14px; }
+  .modalbox .row { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
+  .modalbox table { width:100%; border-collapse:collapse; font-size:12px; }
+  .modalbox th, .modalbox td { border:1px solid #444; padding:5px 8px; text-align:left; }
+  .modalbox th { color:#ff8a70; }
+
+  #exportPanel { position:fixed; inset:0; background:rgba(0,0,0,.82); display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:50; padding:16px; }
+  #exportPanel.show { display:flex; }
+  #exportPanel img { max-width:92%; max-height:58%; border:2px solid #555; border-radius:6px; background:#fff; }
+  #exportPanel .row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  #exportPanel .hint { font-size:12px; color:#aaa; text-align:center; max-width:440px; }
+</style>
+</head>
+<body>
+<div id="fsReg" style="position:fixed;inset:0;background:#1a1d21;z-index:80;overflow-y:auto;display:block">
+  <div style="max-width:760px;margin:0 auto;padding:18px 16px 60px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+      <span style="font-size:22px;font-weight:800;color:#ff5a3c">&#128293; FIRESPARK</span>
+      <span style="font-size:11px;color:#888">v0.1 beta</span>
+      <span class="spacer" style="flex:1"></span>
+      <button class="btn" id="fsExportReg" style="display:none">&#128190; Export register</button>
+    </div>
+    <div id="fsRegStamp" style="font-size:11px;color:#888;margin-bottom:14px"></div>
+
+    <div id="fsImportView">
+      <p style="color:#ccc;font-size:14px;margin:26px 0 16px">Load your local client register to begin. The register never leaves this device — the app is an empty shell without it.</p>
+      <div style="display:flex;flex-direction:column;gap:10px;max-width:340px">
+        <button class="btn primary" id="fsImportBtn" style="padding:14px">&#128194; Load register file</button>
+        <button class="btn" id="fsDemoBtn" style="padding:14px">Try with synthetic demo data</button>
+      </div>
+      <input type="file" id="fsRegInput" style="display:none">
+    </div>
+
+    <div id="fsClientsView" style="display:none">
+      <input type="text" id="fsSearch" placeholder="Search clients &amp; sites…" style="width:100%;background:#23272d;border:1px solid #444;border-radius:10px;color:#e8e8e8;padding:12px;font-size:15px;margin-bottom:12px">
+      <div id="fsClientList"></div>
+    </div>
+
+    <div id="fsSitesView" style="display:none">
+      <button class="btn" id="fsBackClients" style="margin-bottom:10px">&#9664; Clients</button>
+      <h2 id="fsClientTitle" style="font-size:18px;margin-bottom:10px"></h2>
+      <div id="fsSiteList"></div>
+    </div>
+
+    <div id="fsSiteView" style="display:none">
+      <button class="btn" id="fsBackSites" style="margin-bottom:10px">&#9664; Sites</button>
+      <div id="fsSiteDetail"></div>
+    </div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+
+  <div id="topbar">
+    <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.1 beta</span></span>
+    <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+    <button class="btn" id="btnPlans">&#9776; Plans</button>
+    <button class="btn" id="btnNew">&#65291; New</button>
+    <button class="btn" id="btnOpenProj">&#128194; Open</button>
+    <button class="btn" id="btnPhoto">&#128247; Photo</button>
+    <button class="btn" id="btnSaveProj">&#128190; Save</button>
+    <select id="levelSel" style="display:none;background:#2e333a;color:#e8e8e8;border:1px solid #444;border-radius:8px;padding:7px"></select>
+    <button class="btn" id="btnLevels" title="Manage levels">&#127970;</button>
+    <button class="btn" id="btnFit">Fit all</button>
+    <button class="btn" id="btnPageSpace" title="Add white space below the plan">Page +</button>
+    <button class="btn" id="btnPageMinus" title="Remove added white space">Page &minus;</button>
+    <button class="btn" id="btnLabels">&#127991; Labels</button>
+    <button class="btn" id="btnZones">Zones</button>
+    <button class="btn" id="btnNotes">&#128221; Notes</button>
+    <span class="spacer"></span>
+    <button class="btn report" id="btnReport">&#128203; Report</button>
+    <button class="btn primary" id="btnExport">&#11015; Export</button>
+    <input type="file" id="fileInput" accept="image/*">
+    <input type="file" id="projInput">
+    <input type="file" id="imgObjInput" accept="image/*">
+    <input type="file" id="cameraInput" accept="image/*" capture="environment">
+    <input type="file" id="levelInput" accept="image/*,application/pdf">
+  </div>
+
+  <div id="midRow">
+  <div id="sideTabs"></div>
+  <div id="centerCol">
+  <div id="toolrow">
+    <div class="modebtn active" id="mode-pan"><span>&#9995;</span><span class="lbl">Pan</span></div>
+    <div class="modebtn" id="mode-select"><span>&#10548;</span><span class="lbl">Select</span></div>
+    <div class="modebtn" id="mode-test"><span style="color:#4caf50">&#10003;</span><span class="lbl">Test</span></div>
+    <div class="modebtn" id="mode-multi" title="While on, taps add/remove from the selection (or hold Shift on PC)"><span>&#65291;</span><span class="lbl">Multi</span></div>
+    <button class="btn bigur" id="btnUndo" title="Undo (Ctrl+Z)">&#8630;</button>
+    <button class="btn bigur" id="btnRedo" title="Redo (Ctrl+Y)">&#8631;</button>
+  </div>
+  <div id="palette"></div>
+
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="dropHint">
+      <div class="big">Load your block plan to start</div>
+      <div>Tap <b>&#128247; Photo</b> (opens camera on phone) for a photo or image<br>
+      or <b>&#128194; Open</b> for a PDF plan or saved project<br>
+      or drag &amp; drop / Ctrl+V paste onto this area</div>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div id="bottombar">
+    <div id="sizeWrap">Size <input type="range" id="sizeSlider" min="0" max="100" value="48"></div>
+    <div id="swatches"></div>
+    <div id="styleWrap" style="display:none;align-items:center;gap:5px;font-size:12px;color:#aaa">Line
+      <select id="lineStyleSel" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px">
+        <option value="solid">Solid</option><option value="dash">Dashed</option><option value="dot">Dotted</option>
+      </select>
+    </div>
+    <div id="testWrap" style="display:none;align-items:center;gap:5px;font-size:12px;color:#aaa">Testing year
+      <select id="testYear" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px">
+        <option>2026</option><option>2027</option><option>2028</option><option>2029</option>
+      </select>
+    </div>
+    <div id="alphaWrap" style="display:none;align-items:center;gap:5px;font-size:12px;color:#aaa">Opacity <input type="range" id="alphaSlider" min="10" max="100" value="40" style="width:80px"></div>
+    <button class="btn info" id="btnDetails" disabled>&#9432; Details</button>
+    <button class="btn" id="btnRotate" disabled title="Rotate 90&deg;">&#10227;</button>
+    <button class="btn" id="btnFlipH" disabled title="Flip horizontal">&#8644;</button>
+    <button class="btn" id="btnFlipV" disabled title="Flip vertical">&#8645;</button>
+    <button class="btn" id="btnHalf" disabled title="Halftone (fade)">&#9681;</button>
+    <button class="btn" id="btnSame" disabled title="Select all of this type">Select same</button>
+    <button class="btn" id="btnGroup" disabled>Group</button>
+    <button class="btn" id="btnUngroup" disabled>Ungroup</button>
+    <button class="btn" id="btnCopy" disabled title="Copy (Ctrl+C)">Copy</button>
+    <button class="btn" id="btnPaste" disabled title="Paste (Ctrl+V)">Paste</button>
+    <button class="btn" id="btnDup" disabled>Duplicate</button>
+    <button class="btn danger" id="btnDel" disabled>&#128465; Delete</button>
+    <button class="btn" id="btnFlatten" disabled title="Permanently burn selection into the plan">Flatten</button>
+    <span class="spacer"></span>
+    <span id="status">No plan loaded</span>
+  </div>
+
+</div>
+
+<div class="modal" id="detailsModal">
+  <div class="modalbox">
+    <h3 id="detailsTitle">Device details</h3>
+    <label>Zone</label><input type="text" id="dZone" autocomplete="off">
+    <label>Loop</label><input type="text" id="dLoop" autocomplete="off">
+    <label>Device number</label><input type="text" id="dDev" autocomplete="off">
+    <label>Other info</label><input type="text" id="dInfo" autocomplete="off">
+    <div id="dbaFields" style="display:none">
+      <label>A = (dBA, ambient — lowest reading)</label>
+      <div style="display:flex;gap:6px"><input type="text" id="dVa" autocomplete="off" style="flex:1"><button class="btn" id="mA" type="button">Measure</button></div>
+      <label>E = (dBA, evac — highest reading)</label>
+      <div style="display:flex;gap:6px"><input type="text" id="dVe" autocomplete="off" style="flex:1"><button class="btn" id="mE" type="button">Measure</button></div>
+      <div id="mLive" style="font-size:13px;color:#4caf50;min-height:18px;margin-top:6px"></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px;color:#e8e8e8">
+      <input type="checkbox" id="dFailed" style="width:18px;height:18px"> Failed
+    </label>
+    <label>Year tested</label>
+    <div id="dYears" style="display:flex;gap:14px;font-size:14px;color:#e8e8e8">
+      <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dYear" value="2026" style="width:17px;height:17px">2026</label>
+      <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dYear" value="2027" style="width:17px;height:17px">2027</label>
+      <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dYear" value="2028" style="width:17px;height:17px">2028</label>
+      <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dYear" value="2029" style="width:17px;height:17px">2029</label>
+    </div>
+    <div id="photoWrap" style="margin-top:10px">
+      <label>Photo</label>
+      <img id="dPhotoPreview" style="display:none;max-width:120px;max-height:120px;border:1px solid #555;border-radius:6px;margin:4px 0">
+      <div style="display:flex;gap:8px">
+        <button class="btn" id="dPhotoAdd">&#128247; Add photo</button>
+        <button class="btn" id="dPhotoRemove" style="display:none">Remove</button>
+      </div>
+      <input type="file" id="dPhotoInput" accept="image/*">
+    </div>
+    <div class="row">
+      <button class="btn" id="detailsCancel">Cancel</button>
+      <button class="btn primary" id="detailsSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="zonesModal">
+  <div class="modalbox">
+    <h3>Device count by zone</h3>
+    <div id="zonesTable"></div>
+    <div class="row"><button class="btn" id="zonesClose">Close</button></div>
+  </div>
+</div>
+
+<div class="modal" id="textModal">
+  <div class="modalbox">
+    <h3 id="textModalTitle">Text</h3>
+    <label>Text (Enter = new line)</label>
+    <textarea id="tText" rows="3" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:14px;font-family:inherit"></textarea>
+    <div id="tFmtRow" style="display:flex;gap:6px;margin-top:10px">
+      <button class="btn" id="tBold" style="font-weight:800">B</button>
+      <button class="btn" id="tItalic" style="font-style:italic">I</button>
+      <button class="btn" id="tUnder" style="text-decoration:underline">U</button>
+      <button class="btn" id="tStrike" style="text-decoration:line-through">S</button>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;color:#e8e8e8">
+      <input type="checkbox" id="tBg" style="width:18px;height:18px"> White background box
+    </label>
+    <div class="row">
+      <button class="btn" id="textCancel">Cancel</button>
+      <button class="btn primary" id="textSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="notesModal">
+  <div class="modalbox">
+    <h3>Site notes</h3>
+    <textarea id="notesText" style="width:100%;height:180px;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:14px;font-family:inherit"></textarea>
+    <div class="row">
+      <button class="btn" id="notesCancel">Cancel</button>
+      <button class="btn primary" id="notesSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="photosModal">
+  <div class="modalbox" style="max-width:540px">
+    <h3>Site photos</h3>
+    <div id="photosList"></div>
+    <div class="row">
+      <button class="btn" id="photosAdd">&#128247; Take / add photo</button>
+      <button class="btn" id="photosClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="levelsModal">
+  <div class="modalbox" style="max-width:460px">
+    <h3>Levels</h3>
+    <div id="levelsList"></div>
+    <div class="row">
+      <button class="btn primary" id="levelAdd">&#65291; Add level (photo or PDF)</button>
+      <button class="btn" id="levelsClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="photoViewModal">
+  <div class="modalbox" style="max-width:92vw;width:auto">
+    <h3>Photo <span style="font-size:11px;color:#888">— draw on it with your finger/pen (uses selected colour)</span></h3>
+    <canvas id="photoViewCanvas" style="max-width:86vw;max-height:64vh;border:1px solid #555;border-radius:6px;background:#fff;touch-action:none"></canvas>
+    <div class="row">
+      <button class="btn primary" id="photoViewSave">Save</button>
+      <button class="btn" id="photoViewClose">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="timerModal">
+  <div class="modalbox" style="max-width:380px;text-align:center">
+    <h3>Timer</h3>
+    <div id="timerLive" style="font-size:46px;font-weight:800;margin:6px 0">--:--</div>
+    <div id="timerIdle">
+      <label style="text-align:left">Countdown minutes (emergency light test = 90)</label>
+      <input type="text" id="timerMins" inputmode="numeric" value="90" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:16px;text-align:center">
+      <div class="row" style="justify-content:center">
+        <button class="btn primary" id="timerStartDown">&#9200; Start countdown</button>
+        <button class="btn" id="timerStartUp">&#9201; Stopwatch</button>
+      </div>
+    </div>
+    <div class="row" style="justify-content:center">
+      <button class="btn danger" id="timerStop" style="display:none">&#9632; Stop</button>
+      <button class="btn" id="timerClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="timerBadge" style="display:none;position:fixed;right:14px;bottom:64px;z-index:45;background:rgba(20,30,20,.92);border:1px solid #2e7d32;border-radius:10px;padding:8px 14px;color:#4caf50;font-weight:800;font-size:20px;font-variant-numeric:tabular-nums;cursor:pointer"></div>
+
+<div class="modal" id="meterModal">
+  <div class="modalbox" style="max-width:380px;text-align:center">
+    <h3>Sound meter <span style="font-size:11px;color:#888">(indicative — not a calibrated instrument)</span></h3>
+    <div id="meterLive" style="font-size:52px;font-weight:800;margin:8px 0">--</div>
+    <div style="font-size:13px;color:#aaa;margin-bottom:10px">min <span id="meterMin">--</span> · max <span id="meterMax">--</span> dBA</div>
+    <button class="btn primary" id="meterToggle">&#127908; Start</button>
+    <div style="margin-top:14px;font-size:12px;color:#aaa;text-align:left">
+      Calibrate: enter the reading from your real meter while both are measuring
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <input type="text" id="calInput" inputmode="decimal" placeholder="e.g. 62.5" style="flex:1;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:7px">
+        <button class="btn" id="calSet">Set</button>
+      </div>
+      <div id="calNote" style="margin-top:4px;color:#888"></div>
+    </div>
+    <div class="row"><button class="btn" id="meterClose">Close</button></div>
+  </div>
+</div>
+
+<div class="modal" id="photoModal">
+  <div class="modalbox" style="max-width:380px">
+    <h3>Add photo</h3>
+    <p style="font-size:13px;color:#ccc;margin-bottom:12px">A plan is already loaded. What should this photo do?</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn primary" id="photoAdd">&#128444; Add onto current plan (moveable image)</button>
+      <button class="btn" id="photoReplace">&#8635; Replace the plan</button>
+      <button class="btn" id="photoCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="plansModal">
+  <div class="modalbox" style="max-width:520px">
+    <h3>My plans (saved on this device)</h3>
+    <button class="btn primary" id="planSaveNew" style="margin-bottom:10px">&#128190; Save current as new plan</button>
+    <div id="plansList"></div>
+    <div class="row"><button class="btn" id="plansClose">Close</button></div>
+  </div>
+</div>
+
+<div class="modal" id="reportModal">
+  <div class="modalbox" style="max-width:560px">
+    <h3>Site report</h3>
+    <div id="reportBody" style="font-size:13px"></div>
+    <div class="row">
+      <button class="btn primary" id="reportPdf">&#128196; Save as PDF</button>
+      <button class="btn" id="reportCsv">&#128202; Save CSV</button>
+      <button class="btn" id="reportClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="exportPanel">
+  <img id="exportImg" alt="Exported plan">
+  <div class="row">
+    <button class="btn primary" id="exportPng">&#11015; Save as PNG</button>
+    <button class="btn" id="exportPdf">&#128196; Save as PDF</button>
+    <button class="btn" id="exportClose">Close</button>
+  </div>
+  <div class="hint">PNG for quick sharing, PDF for Bluebeam. Both are flattened &mdash; for an editable copy use <b>Save</b>.<br>On iPad/iPhone, saving opens the share sheet: choose Save to Files, AirDrop, or send it to someone.</div>
+</div>
+
+<script>
+"use strict";
+
+/* ================= Symbol definitions ================= */
+const TYPES = [
+  { id:"smoke",    tab:"fire", label:"Smoke",        glyph:"circle",   text:"S",     color:"#d81e05", dashed:false },
+  { id:"csmoke",   tab:"fire", label:"Conc Smoke",   glyph:"circle",   text:"S",     color:"#f4693f", dashed:true  },
+  { id:"thermal",  tab:"fire", label:"Thermal",      glyph:"circle",   text:"T",     color:"#1b8a3f", dashed:false },
+  { id:"cthermal", tab:"fire", label:"Conc Thermal", glyph:"circle",   text:"T",     color:"#63b76c", dashed:true  },
+  { id:"fip",      tab:"fire", label:"FIP",          glyph:"widetext", text:"FIP",   color:"#c40000" },
+  { id:"fdcie",    tab:"fire", label:"FDCIE",        glyph:"widetext", text:"FDCIE", color:"#c40000" },
+  { id:"mcp",      tab:"fire", label:"MCP",          glyph:"sqtext",   text:"MCP",   color:"#c40000" },
+  { id:"wip",      tab:"fire", label:"WIP",          glyph:"phone",    text:"",      color:"#c40000" },
+  { id:"sounder",  tab:"fire", label:"Sounder",      glyph:"sndr",     text:"",      color:"#e07b00" },
+  { id:"horn",     tab:"fire", label:"Horn",         glyph:"horn",     text:"",      color:"#e07b00" },
+  { id:"sm240",    tab:"fire", label:"240V Smoke",   glyph:"sm240",    text:"",      color:"#f2c200" },
+  { id:"dba",      tab:"fire", label:"dBA",          glyph:"dba",      text:"",      color:"#757575" },
+  { id:"ows",      tab:"fire", label:"OWS",          glyph:"widetext", text:"OWS",   color:"#c40000" },
+  { id:"vesda",    tab:"fire", label:"VESDA",        glyph:"circle",   text:"V",     color:"#7b1fa2" },
+  { id:"io",       tab:"fire", label:"Interface",    glyph:"sqtext",   text:"IO",    color:"#546e7a" },
+  { id:"hreel",    tab:"fire", label:"Hose Reel",    glyph:"hreel",    text:"",      color:"#c40000" },
+  { id:"exting",   tab:"fire", label:"Extinguisher", glyph:"exting",   text:"",      color:"#c40000" },
+  { id:"exitl",    tab:"exit", label:"Exit Left",    glyph:"exit",     text:"EXIT",  arrow:"l", color:"#1b8a3f" },
+  { id:"exit",     tab:"exit", label:"Exit",         glyph:"exit",     text:"EXIT",  arrow:"",  color:"#1b8a3f" },
+  { id:"exitr",    tab:"exit", label:"Exit Right",   glyph:"exit",     text:"EXIT",  arrow:"r", color:"#1b8a3f" },
+  { id:"db",       tab:"elec", label:"DB Board",     glyph:"db",       text:"",      color:"#111111" },
+  { id:"door",     tab:"bldg", label:"Door",         glyph:"door",     text:"",      color:"#111111" },
+  { id:"dbldoor",  tab:"bldg", label:"Double Door",  glyph:"dbldoor",  text:"",      color:"#111111" },
+  { id:"sldoor",   tab:"bldg", label:"Sliding Door", glyph:"sldoor",   text:"",      color:"#111111" },
+  { id:"rldoor",   tab:"bldg", label:"Roller Door",  glyph:"rldoor",   text:"",      color:"#111111" },
+  { id:"window",   tab:"bldg", label:"Window",       glyph:"window",   text:"",      color:"#111111" },
+  { id:"opening",  tab:"bldg", label:"Opening",      glyph:"opening",  text:"",      color:"#111111" },
+  { id:"stair",    tab:"bldg", label:"Stairs",       glyph:"stair",    text:"",      color:"#111111" },
+  { id:"lstair",   tab:"bldg", label:"L Stairs",     glyph:"lstair",   text:"",      color:"#111111" }
+];
+const TYPE_MAP = {}; TYPES.forEach(t => TYPE_MAP[t.id] = t);
+const OLD_TYPE_MAP = { heat:"thermal", cheat:"cthermal" };
+
+const TOOLS_TAB = [
+  { id:"timer",  label:"Timer",       icon:"⏱" },
+  { id:"meter",  label:"Sound meter", icon:"🎚" },
+  { id:"camera", label:"Camera",      icon:"📷" },
+  { id:"photos", label:"Site photos", icon:"🖼" }
+];
+const MARKUP_TOOLS = [
+  { id:"pen",     label:"Pen",         icon:"✏️" },
+  { id:"hl",      label:"Highlighter", icon:"🖍️" },
+  { id:"text",    label:"Text",        icon:"💬" },
+  { id:"line",    label:"Line",        icon:"╱" },
+  { id:"arrow",   label:"Arrow",       icon:"↗" },
+  { id:"rect",    label:"Rectangle",   icon:"▭" },
+  { id:"ellipse", label:"Ellipse",     icon:"⬭" },
+  { id:"cloud",   label:"Cloud",       icon:"☁️" },
+  { id:"callout", label:"Callout",     icon:"💬↗" },
+  { id:"hatchd",  label:"Hatch ▨",     icon:"▨" },
+  { id:"hatchx",  label:"Hatch ▩",     icon:"▩" },
+  { id:"hatchs",  label:"Hatch solid", icon:"■" },
+  { id:"hatcho",  label:"Hatch dots",  icon:"⣿" }
+];
+const TABS = [
+  { id:"fav",    label:"Favourites" },
+  { id:"fire",   label:"Fire" },
+  { id:"exit",   label:"Exit" },
+  { id:"elec",   label:"Electrical" },
+  { id:"bldg",   label:"Building" },
+  { id:"markup", label:"Markup" },
+  { id:"tools",  label:"Tools" }
+];
+const PALETTE_COLORS = ["#d81e05", "#f2c200", "#1b8a3f", "#0057d8", "#111111", "#ffffff"];
+
+/* ================= State ================= */
+let img = null;
+let imgDataUrl = null;
+let objects = [];
+let selection = [];             // array of object references
+let activeTool = "pan";         // pan | select | markup tool id | symbol type id
+let activeTab = "fav";
+let penColor = PALETTE_COLORS[0];
+let labelsOn = true;
+let view = { scale:1, x:0, y:0 };
+let undoStack = [], redoStack = [];
+const MAX_UNDO = 80;
+let fileHandle = null;          // File System Access handle (PC save-in-place)
+let lastSaveNote = "";
+let siteNotes = "";
+let pageBaseH = null;
+let testYearSel = 2026;
+let lineStyle = "solid";
+let sitePhotos = [];
+let levels = [];
+let curLevel = 0;
+let clipboardObjs = [];
+
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d");
+const stage = document.getElementById("stage");
+const statusEl = document.getElementById("status");
+const sizeSlider = document.getElementById("sizeSlider");
+function sizeVal() { return Math.round(12 * Math.pow(10, (+sizeSlider.value) / 100)); }
+function sliderFromSize(s) { return Math.round(100 * Math.log10(Math.max(12, s) / 12)); }
+
+/* ================= Canvas sizing / coords ================= */
+function resizeCanvas() {
+  const r = stage.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(r.width * dpr);
+  cv.height = Math.round(r.height * dpr);
+  cv.style.width = r.width + "px";
+  cv.style.height = r.height + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  draw();
+}
+window.addEventListener("resize", resizeCanvas);
+
+function toImage(px, py) { return { x:(px - view.x) / view.scale, y:(py - view.y) / view.scale }; }
+
+function fitView() {
+  if (!img) return;
+  const r = stage.getBoundingClientRect();
+  const s = Math.min(r.width / img.naturalWidth, r.height / img.naturalHeight) * 0.96;
+  view.scale = s;
+  view.x = (r.width - img.naturalWidth * s) / 2;
+  view.y = (r.height - img.naturalHeight * s) / 2;
+  draw();
+}
+
+function zoomAt(px, py, factor) {
+  const before = toImage(px, py);
+  view.scale = Math.min(20, Math.max(0.05, view.scale * factor));
+  view.x = px - before.x * view.scale;
+  view.y = py - before.y * view.scale;
+  requestDraw();
+}
+
+/* ================= Symbol glyph drawing ================= */
+function symDims(o) {   // image-space width/height (before rotation)
+  const t = TYPE_MAP[o.type] || {};
+  const s = o.size;
+  let w = s, h = s;
+  if (t.glyph === "widetext") { w = s * 2.3; h = s; }
+  else if (t.glyph === "exit") { w = s * 2.4; h = s * 1.1; }
+  else if (t.glyph === "horn") { w = s * 1.7; h = s; }
+  else if (t.glyph === "sndr") { w = s * 1.35; h = s * 0.8; }
+  else if (t.glyph === "dba") { w = s * 1.4; h = s * 1.9; }
+  else if (t.glyph === "door") { w = s * 1.35; h = s * 1.2; }
+  else if (t.glyph === "dbldoor") { w = s * 1.9; h = s * 1.1; }
+  else if (t.glyph === "sldoor" || t.glyph === "rldoor") { w = s * 1.8; h = s * 0.55; }
+  else if (t.glyph === "window" || t.glyph === "opening") { w = s * 1.6; h = s * 0.4; }
+  else if (t.glyph === "stair") { w = s * 1.8; h = s; }
+  else if (t.glyph === "lstair") { w = s * 1.45; h = s * 1.45; }
+  else if (t.glyph === "db") { w = s * 1.9; h = s * 1.15; }
+  if ((o.rot || 0) % 180 === 90) { const tmp = w; w = h; h = tmp; }
+  return { w, h };
+}
+
+function drawSym(c, o, scale) {
+  const t = TYPE_MAP[o.type];
+  if (!t) return;
+  const col = o.color || t.color;
+  const s = o.size * scale;
+  const x = o.x * scale, y = o.y * scale;
+  const sx = o.fx ? -1 : 1, sy = o.fy ? -1 : 1;
+  c.save();
+  c.translate(x, y);
+  c.rotate(((o.rot || 0)) * Math.PI / 180);
+  c.scale(sx, sy);
+
+  // draws readable (never mirrored) text at local layout point (ox,oy); rotates with the symbol
+  function glyphText(txt, fs, ox, oy) {
+    c.save();
+    c.scale(sx, sy);
+    c.fillStyle = "#ffffff";
+    c.font = "bold " + fs + "px system-ui, sans-serif";
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.fillText(txt, sx * (ox || 0), sy * (oy || 0) + fs * 0.05);
+    c.restore();
+  }
+
+  if (t.glyph === "circle") {
+    const r = s / 2;
+    c.fillStyle = col; c.strokeStyle = "#ffffff";
+    c.lineWidth = Math.max(1, r * 0.12);
+    if (t.dashed) c.setLineDash([r * 0.35, r * 0.28]);
+    c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.setLineDash([]);
+    if (t.text) glyphText(t.text, s * 0.55);
+  } else if (t.glyph === "sqtext" || t.glyph === "widetext") {
+    const w = (t.glyph === "sqtext" ? s : s * 2.3), h = s;
+    c.fillStyle = col; c.strokeStyle = "#ffffff";
+    c.lineWidth = Math.max(1, s * 0.06);
+    c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.fill(); c.stroke();
+    if (t.text) {
+      const fs = t.glyph === "sqtext"
+        ? (t.text.length > 2 ? s * 0.42 : s * 0.5)
+        : Math.min(s * 0.55, (s * 2.1) / t.text.length * 1.5);
+      glyphText(t.text, fs);
+    }
+  } else if (t.glyph === "exit") {
+    const w = s * 2.4, h = s * 1.1;
+    c.fillStyle = col; c.strokeStyle = "#ffffff";
+    c.lineWidth = Math.max(1, s * 0.06);
+    c.beginPath();
+    if (c.roundRect) c.roundRect(-w / 2, -h / 2, w, h, s * 0.12); else c.rect(-w / 2, -h / 2, w, h);
+    c.fill(); c.stroke();
+    const ah = h * 0.5;
+    let ox = 0;
+    if (t.arrow === "l") {
+      c.fillStyle = "#ffffff";
+      c.beginPath();
+      c.moveTo(-w / 2 + h * 0.16, 0);
+      c.lineTo(-w / 2 + h * 0.16 + ah * 0.9, -ah / 2);
+      c.lineTo(-w / 2 + h * 0.16 + ah * 0.9, ah / 2);
+      c.closePath(); c.fill();
+      ox = ah * 0.45;
+    } else if (t.arrow === "r") {
+      c.fillStyle = "#ffffff";
+      c.beginPath();
+      c.moveTo(w / 2 - h * 0.16, 0);
+      c.lineTo(w / 2 - h * 0.16 - ah * 0.9, -ah / 2);
+      c.lineTo(w / 2 - h * 0.16 - ah * 0.9, ah / 2);
+      c.closePath(); c.fill();
+      ox = -ah * 0.45;
+    }
+    glyphText("EXIT", s * 0.48, ox, 0);
+  } else if (t.glyph === "horn") {
+    const w = s * 1.7, h = s;
+    const sq = h * 0.55;
+    c.fillStyle = col; c.strokeStyle = "#333333";
+    c.lineWidth = Math.max(1, s * 0.06);
+    c.beginPath();
+    c.rect(-w / 2, -sq / 2, sq, sq);
+    c.fill(); c.stroke();
+    c.beginPath();
+    c.moveTo(-w / 2 + sq, -sq / 2 + sq * 0.15);
+    c.lineTo(w / 2, -h / 2);
+    c.lineTo(w / 2, h / 2);
+    c.lineTo(-w / 2 + sq, sq / 2 - sq * 0.15);
+    c.closePath();
+    c.fill(); c.stroke();
+  } else if (t.glyph === "phone") {
+    const r = s / 2;
+    c.fillStyle = col; c.strokeStyle = "#ffffff";
+    c.lineWidth = Math.max(1, s * 0.06);
+    c.beginPath(); c.rect(-r, -r, s, s); c.fill(); c.stroke();
+    // handset: bridge arc bulging up + two earpieces, tilted like a phone icon
+    c.save();
+    c.rotate(-Math.PI / 5);
+    c.strokeStyle = "#ffffff"; c.lineWidth = r * 0.24; c.lineCap = "round";
+    c.beginPath(); c.arc(0, r * 0.52, r * 0.62, Math.PI * 1.25, Math.PI * 1.75); c.stroke();
+    c.fillStyle = "#ffffff";
+    const ex = r * 0.62 * Math.cos(Math.PI * 0.25), ey = r * 0.52 - r * 0.62 * Math.sin(Math.PI * 0.25);
+    c.beginPath(); c.arc(-ex, ey, r * 0.2, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(ex, ey, r * 0.2, 0, Math.PI * 2); c.fill();
+    c.restore();
+  } else if (t.glyph === "sndr") {
+    // shorter closed horn (Reece's sounder reference)
+    const w = s * 1.35, h2 = s * 0.8;
+    const sq = h2 * 0.62;
+    c.fillStyle = col; c.strokeStyle = "#333333";
+    c.lineWidth = Math.max(1, s * 0.06);
+    c.beginPath(); c.rect(-w / 2, -sq / 2, sq, sq); c.fill(); c.stroke();
+    c.beginPath();
+    c.moveTo(-w / 2 + sq, -sq / 2 + sq * 0.1);
+    c.lineTo(w / 2, -h2 / 2);
+    c.lineTo(w / 2 - h2 * 0.28, h2 / 2);
+    c.lineTo(-w / 2 + sq, sq / 2 - sq * 0.1);
+    c.closePath(); c.fill(); c.stroke();
+  } else if (t.glyph === "sm240") {
+    const r = s / 2;
+    c.fillStyle = col; c.strokeStyle = "#ffffff";
+    c.lineWidth = Math.max(1, r * 0.12);
+    c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.strokeStyle = "#111111"; c.lineWidth = Math.max(1.2, r * 0.11);
+    c.lineJoin = "round";
+    c.beginPath();
+    c.moveTo(r * 0.16, -r * 0.62);
+    c.lineTo(-r * 0.3, r * 0.05);
+    c.lineTo(-r * 0.02, r * 0.05);
+    c.lineTo(-r * 0.16, r * 0.45);
+    c.lineTo(r * 0.3, -r * 0.2);
+    c.lineTo(r * 0.02, -r * 0.2);
+    c.closePath();
+    c.stroke();
+    c.save();
+    c.scale(sx, sy);
+    c.fillStyle = "#111111";
+    c.font = "bold " + (r * 0.42) + "px system-ui, sans-serif";
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.fillText("240V", 0, sy * (r * 0.68));
+    c.restore();
+  } else if (t.glyph === "dba") {
+    // speaker with sound waves
+    const w = s * 1.4, h2 = s;
+    c.fillStyle = col; c.strokeStyle = col;
+    c.lineWidth = Math.max(1.2, s * 0.09); c.lineCap = "round";
+    const bx = -w / 2;
+    c.beginPath(); c.rect(bx, -h2 * 0.18, w * 0.2, h2 * 0.36); c.fill();
+    c.beginPath();
+    c.moveTo(bx + w * 0.2, -h2 * 0.16);
+    c.lineTo(bx + w * 0.52, -h2 * 0.5);
+    c.lineTo(bx + w * 0.52, h2 * 0.5);
+    c.lineTo(bx + w * 0.2, h2 * 0.16);
+    c.closePath(); c.fill();
+    [0.32, 0.52, 0.72].forEach(f => {
+      c.beginPath(); c.arc(bx + w * 0.56, 0, w * f * 0.6, -Math.PI / 3.2, Math.PI / 3.2); c.stroke();
+    });
+  } else if (t.glyph === "door") {
+    c.strokeStyle = col; c.lineWidth = Math.max(1.2, s * 0.08); c.lineCap = "round";
+    const dw = s;
+    c.beginPath();
+    c.moveTo(-dw / 2 - s * 0.17, s * 0.5); c.lineTo(-dw / 2, s * 0.5);
+    c.moveTo(dw / 2, s * 0.5); c.lineTo(dw / 2 + s * 0.17, s * 0.5);
+    c.stroke();
+    c.beginPath(); c.moveTo(-dw / 2, s * 0.5); c.lineTo(-dw / 2, s * 0.5 - dw); c.stroke();
+    c.beginPath(); c.arc(-dw / 2, s * 0.5, dw, -Math.PI / 2, 0); c.stroke();
+  } else if (t.glyph === "dbldoor") {
+    c.strokeStyle = col; c.lineWidth = Math.max(1.2, s * 0.08); c.lineCap = "round";
+    const lw2 = s * 0.9;
+    c.beginPath();
+    c.moveTo(-lw2 - s * 0.15, s * 0.5); c.lineTo(-lw2, s * 0.5);
+    c.moveTo(lw2, s * 0.5); c.lineTo(lw2 + s * 0.15, s * 0.5);
+    c.stroke();
+    c.beginPath(); c.moveTo(-lw2, s * 0.5); c.lineTo(-lw2, s * 0.5 - lw2); c.stroke();
+    c.beginPath(); c.arc(-lw2, s * 0.5, lw2, -Math.PI / 2, 0); c.stroke();
+    c.beginPath(); c.moveTo(lw2, s * 0.5); c.lineTo(lw2, s * 0.5 - lw2); c.stroke();
+    c.beginPath(); c.arc(lw2, s * 0.5, lw2, Math.PI, Math.PI * 1.5); c.stroke();
+  } else if (t.glyph === "sldoor") {
+    c.strokeStyle = col; c.lineWidth = Math.max(1.2, s * 0.09); c.lineCap = "butt";
+    c.beginPath();
+    c.moveTo(-s * 0.9, -s * 0.09); c.lineTo(s * 0.12, -s * 0.09);
+    c.moveTo(-s * 0.12, s * 0.09); c.lineTo(s * 0.9, s * 0.09);
+    c.stroke();
+    c.lineWidth = Math.max(1, s * 0.05);
+    c.strokeRect(-s * 0.9, -s * 0.2, s * 1.8, s * 0.4);
+  } else if (t.glyph === "rldoor") {
+    c.strokeStyle = col; c.lineWidth = Math.max(1, s * 0.06);
+    c.strokeRect(-s * 0.9, -s * 0.22, s * 1.8, s * 0.44);
+    c.beginPath();
+    for (let xx = -s * 0.72; xx <= s * 0.72; xx += s * 0.18) {
+      c.moveTo(xx, -s * 0.22); c.lineTo(xx, s * 0.22);
+    }
+    c.stroke();
+  } else if (t.glyph === "window") {
+    c.strokeStyle = col; c.lineWidth = Math.max(1, s * 0.06); c.lineCap = "butt";
+    c.beginPath();
+    [-s * 0.14, 0, s * 0.14].forEach(yy => { c.moveTo(-s * 0.8, yy); c.lineTo(s * 0.8, yy); });
+    c.moveTo(-s * 0.8, -s * 0.14); c.lineTo(-s * 0.8, s * 0.14);
+    c.moveTo(s * 0.8, -s * 0.14); c.lineTo(s * 0.8, s * 0.14);
+    c.stroke();
+  } else if (t.glyph === "opening") {
+    c.strokeStyle = col; c.lineWidth = Math.max(1.2, s * 0.08); c.lineCap = "butt";
+    c.beginPath();
+    c.moveTo(-s * 0.8, -s * 0.16); c.lineTo(-s * 0.8, s * 0.16);
+    c.moveTo(s * 0.8, -s * 0.16); c.lineTo(s * 0.8, s * 0.16);
+    c.stroke();
+    c.setLineDash([s * 0.12, s * 0.1]);
+    c.beginPath(); c.moveTo(-s * 0.8, 0); c.lineTo(s * 0.8, 0); c.stroke();
+    c.setLineDash([]);
+  } else if (t.glyph === "stair") {
+    c.strokeStyle = col; c.lineWidth = Math.max(1, s * 0.055); c.lineCap = "butt";
+    c.strokeRect(-s * 0.9, -s * 0.5, s * 1.8, s);
+    c.beginPath();
+    for (let xx = -s * 0.72; xx <= s * 0.72; xx += s * 0.18) {
+      c.moveTo(xx, -s * 0.5); c.lineTo(xx, s * 0.5);
+    }
+    c.stroke();
+    c.lineWidth = Math.max(1.2, s * 0.08); c.lineCap = "round";
+    c.beginPath(); c.moveTo(-s * 0.78, 0); c.lineTo(s * 0.68, 0); c.stroke();
+    c.beginPath();
+    c.moveTo(s * 0.68, 0); c.lineTo(s * 0.48, -s * 0.14);
+    c.moveTo(s * 0.68, 0); c.lineTo(s * 0.48, s * 0.14);
+    c.stroke();
+  } else if (t.glyph === "lstair") {
+    c.strokeStyle = col; c.lineWidth = Math.max(1, s * 0.055); c.lineCap = "butt";
+    // horizontal arm (top) and vertical arm (right) meeting at a landing
+    c.strokeRect(-s * 0.72, -s * 0.72, s * 1.44, s * 0.5);
+    c.strokeRect(s * 0.22, -s * 0.72, s * 0.5, s * 1.44);
+    c.beginPath();
+    for (let xx = -s * 0.58; xx <= s * 0.1; xx += s * 0.17) {
+      c.moveTo(xx, -s * 0.72); c.lineTo(xx, -s * 0.22);
+    }
+    for (let yy = -s * 0.08; yy <= s * 0.58; yy += s * 0.17) {
+      c.moveTo(s * 0.22, yy); c.lineTo(s * 0.72, yy);
+    }
+    c.stroke();
+    c.lineWidth = Math.max(1.2, s * 0.08); c.lineCap = "round";
+    c.beginPath();
+    c.moveTo(-s * 0.62, -s * 0.47); c.lineTo(s * 0.47, -s * 0.47); c.lineTo(s * 0.47, s * 0.58);
+    c.stroke();
+    c.beginPath();
+    c.moveTo(s * 0.47, s * 0.58); c.lineTo(s * 0.33, s * 0.4);
+    c.moveTo(s * 0.47, s * 0.58); c.lineTo(s * 0.61, s * 0.4);
+    c.stroke();
+  } else if (t.glyph === "db") {
+    const w = s * 1.9, h = s * 1.15;
+    c.fillStyle = "#ffffff"; c.strokeStyle = col;
+    c.lineWidth = Math.max(1.5, s * 0.1);
+    c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.fill();
+    c.fillStyle = col;
+    c.beginPath();
+    c.moveTo(-w / 2, h / 2); c.lineTo(w / 2, -h / 2); c.lineTo(w / 2, h / 2); c.closePath();
+    c.fill();
+    c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.stroke();
+  } else if (t.glyph === "hreel") {
+    const r = s / 2;
+    c.fillStyle = col; c.strokeStyle = "#ffffff";
+    c.lineWidth = Math.max(1, s * 0.06);
+    c.beginPath(); c.rect(-r, -r, s, s); c.fill(); c.stroke();
+    c.strokeStyle = "#ffffff"; c.lineWidth = Math.max(1.5, r * 0.14);
+    c.beginPath(); c.arc(-r * 0.15, 0, r * 0.5, 0, Math.PI * 2); c.stroke();
+    c.beginPath(); c.arc(-r * 0.15, 0, r * 0.18, 0, Math.PI * 2); c.stroke();
+    c.beginPath(); c.moveTo(r * 0.35, 0); c.lineTo(r * 0.72, 0); c.stroke();
+  } else if (t.glyph === "exting") {
+    const r = s / 2;
+    c.fillStyle = col; c.strokeStyle = "#ffffff";
+    c.lineWidth = Math.max(1, s * 0.06);
+    c.beginPath(); c.rect(-r, -r, s, s); c.fill(); c.stroke();
+    c.fillStyle = "#ffffff";
+    c.beginPath();
+    if (c.roundRect) c.roundRect(-r * 0.28, -r * 0.25, r * 0.56, r * 0.95, r * 0.15); else c.rect(-r * 0.28, -r * 0.25, r * 0.56, r * 0.95);
+    c.fill();
+    c.fillRect(-r * 0.09, -r * 0.5, r * 0.18, r * 0.28);
+    c.strokeStyle = "#ffffff"; c.lineWidth = r * 0.12; c.lineCap = "round";
+    c.beginPath(); c.moveTo(-r * 0.3, -r * 0.52); c.lineTo(r * 0.3, -r * 0.52); c.stroke();
+    c.beginPath(); c.moveTo(r * 0.05, -r * 0.45); c.lineTo(r * 0.42, -r * 0.2); c.stroke();
+  }
+  c.restore();
+
+  // ID label (always upright, below the symbol)
+  if (labelsOn && (o.zone || o.loop || o.dev)) {
+    const parts = [];
+    if (o.zone) parts.push("Z" + o.zone);
+    if (o.loop) parts.push("L" + o.loop);
+    if (o.dev)  parts.push("D" + o.dev);
+    const label = parts.join("·");
+    const d = symDims(o);
+    const fs = Math.max(8 * scale, o.size * scale * 0.32);
+    c.save();
+    c.font = "bold " + fs + "px system-ui, sans-serif";
+    c.textAlign = "center"; c.textBaseline = "top";
+    let ly = y + (d.h / 2) * scale + 2 * scale;
+    if (t.glyph === "dba") ly = y + o.size * 1.5 * scale;
+    c.lineWidth = fs * 0.25; c.strokeStyle = "#ffffff";
+    c.strokeText(label, x, ly);
+    c.fillStyle = "#111111";
+    c.fillText(label, x, ly);
+    c.restore();
+  }
+
+  // dBA value lines (always shown)
+  if (t.glyph === "dba") {
+    const fs = Math.max(8 * scale, o.size * scale * 0.34);
+    c.save();
+    c.font = "bold " + fs + "px system-ui, sans-serif";
+    c.textAlign = "center"; c.textBaseline = "top";
+    let ly = y + (o.size * 0.55) * scale;
+    ["A=" + (o.va || ""), "E=" + (o.ve || "")].forEach(line => {
+      c.lineWidth = fs * 0.25; c.strokeStyle = "#ffffff";
+      c.strokeText(line, x, ly);
+      c.fillStyle = "#111111";
+      c.fillText(line, x, ly);
+      ly += fs * 1.15;
+    });
+    c.restore();
+  }
+
+  // tested badge (test mode only)
+  if (activeTool === "test") {
+    const d2 = symDims(o);
+    const bx2 = x - (d2.w / 2) * scale, by2 = y - (d2.h / 2) * scale;
+    const br2 = Math.max(6 * scale, o.size * scale * 0.22);
+    const done = (o.ty || []).includes(testYearSel);
+    c.save();
+    c.beginPath(); c.arc(bx2, by2, br2, 0, Math.PI * 2);
+    c.fillStyle = done ? "#1b8a3f" : "#e0e0e0";
+    c.fill();
+    c.strokeStyle = "#ffffff"; c.lineWidth = Math.max(1, br2 * 0.16); c.stroke();
+    if (done) {
+      c.strokeStyle = "#ffffff"; c.lineWidth = br2 * 0.3; c.lineCap = "round";
+      c.beginPath();
+      c.moveTo(bx2 - br2 * 0.45, by2 + br2 * 0.05);
+      c.lineTo(bx2 - br2 * 0.1, by2 + br2 * 0.42);
+      c.lineTo(bx2 + br2 * 0.5, by2 - br2 * 0.35);
+      c.stroke();
+    }
+    c.restore();
+  }
+
+  // info "!" badge (bottom-right) when Other info holds anything
+  if (o.info) {
+    const d3 = symDims(o);
+    const bx3 = x + (d3.w / 2) * scale, by3 = y + (d3.h / 2) * scale;
+    const br3 = Math.max(5 * scale, o.size * scale * 0.19);
+    c.save();
+    c.beginPath(); c.arc(bx3, by3, br3, 0, Math.PI * 2);
+    c.fillStyle = "#f2c200"; c.fill();
+    c.strokeStyle = "#ffffff"; c.lineWidth = Math.max(1, br3 * 0.16); c.stroke();
+    c.fillStyle = "#111111";
+    c.font = "bold " + (br3 * 1.4) + "px system-ui, sans-serif";
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.fillText("!", bx3, by3 + br3 * 0.08);
+    c.restore();
+  }
+
+  // failed cross badge
+  if (o.failed) {
+    const d = symDims(o);
+    const bx = x + (d.w / 2) * scale, by = y - (d.h / 2) * scale;
+    const br = Math.max(5 * scale, o.size * scale * 0.2);
+    c.save();
+    c.strokeStyle = "#ff1744"; c.lineWidth = br * 0.42; c.lineCap = "round";
+    c.beginPath();
+    c.moveTo(bx - br, by - br); c.lineTo(bx + br, by + br);
+    c.moveTo(bx + br, by - br); c.lineTo(bx - br, by + br);
+    c.stroke();
+    c.restore();
+  }
+}
+
+/* ================= Object drawing ================= */
+function drawObject(c, o, scale) {
+  if (o.half) {
+    c.save(); c.globalAlpha = 0.35;
+    drawObjectInner(c, o, scale);
+    c.restore();
+    return;
+  }
+  drawObjectInner(c, o, scale);
+}
+
+function drawObjectInner(c, o, scale) {
+  if (o.kind === "sym") { drawSym(c, o, scale); return; }
+
+  if (o.kind === "ink") {
+    if (o.points.length < 2) return;
+    c.save();
+    c.globalAlpha = o.alpha != null ? o.alpha : 1;
+    c.strokeStyle = o.color;
+    c.lineWidth = Math.max(0.5, o.width * scale);
+    c.lineCap = "round"; c.lineJoin = "round";
+    c.beginPath();
+    c.moveTo(o.points[0].x * scale, o.points[0].y * scale);
+    for (let i = 1; i < o.points.length; i++) c.lineTo(o.points[i].x * scale, o.points[i].y * scale);
+    c.stroke();
+    c.restore();
+    return;
+  }
+
+  if (o.kind === "img") {
+    const el = getCachedImg(o.src);
+    if (el && el.complete && el.naturalWidth) {
+      c.save();
+      if (o.alpha != null && o.alpha < 1) c.globalAlpha = c.globalAlpha * o.alpha;
+      c.drawImage(el, o.x * scale, o.y * scale, o.w * scale, o.h * scale);
+      c.restore();
+    } else {
+      c.save();
+      c.fillStyle = "#eeeeee"; c.strokeStyle = "#999999";
+      c.fillRect(o.x * scale, o.y * scale, o.w * scale, o.h * scale);
+      c.strokeRect(o.x * scale, o.y * scale, o.w * scale, o.h * scale);
+      c.restore();
+    }
+    return;
+  }
+
+  if (o.kind === "text") {
+    const d = textBlockDims(o);
+    c.save();
+    c.scale(scale, scale);
+    c.font = textFont(o, 1);
+    if (o.bg) {
+      const pad = o.size * 0.2;
+      c.fillStyle = "#ffffff";
+      c.fillRect(o.x - pad, o.y - pad, d.w + pad * 2, d.h + pad * 2);
+      c.strokeStyle = o.color; c.lineWidth = Math.max(0.75, o.size * 0.04);
+      c.strokeRect(o.x - pad, o.y - pad, d.w + pad * 2, d.h + pad * 2);
+    }
+    c.fillStyle = o.color;
+    c.textAlign = "left"; c.textBaseline = "top";
+    d.lines.forEach((ln, i) => {
+      const ly = o.y + i * o.size * 1.15;
+      c.fillText(ln, o.x, ly);
+      if (o.under || o.strike) {
+        const lw = mctx.measureText(ln).width;
+        c.strokeStyle = o.color;
+        c.lineWidth = Math.max(0.75, o.size * 0.06);
+        if (o.under) {
+          c.beginPath(); c.moveTo(o.x, ly + o.size * 1.04);
+          c.lineTo(o.x + lw, ly + o.size * 1.04); c.stroke();
+        }
+        if (o.strike) {
+          c.beginPath(); c.moveTo(o.x, ly + o.size * 0.52);
+          c.lineTo(o.x + lw, ly + o.size * 0.52); c.stroke();
+        }
+      }
+    });
+    c.restore();
+    return;
+  }
+
+  if (o.kind === "shape") {
+    const x1 = o.x1 * scale, y1 = o.y1 * scale, x2 = o.x2 * scale, y2 = o.y2 * scale;
+    c.save();
+    c.strokeStyle = o.color;
+    c.lineWidth = Math.max(1, o.width * scale);
+    c.lineCap = "round"; c.lineJoin = "round";
+    if (o.ls === "dash") c.setLineDash([o.width * scale * 3.2, o.width * scale * 2.2]);
+    else if (o.ls === "dot") { c.setLineDash([0.01, o.width * scale * 2.4]); c.lineCap = "round"; }
+    if (o.shape === "line" || o.shape === "arrow") {
+      c.beginPath(); c.moveTo(x1, y1);
+      if (o.cx != null) c.quadraticCurveTo(o.cx * scale, o.cy * scale, x2, y2);
+      else c.lineTo(x2, y2);
+      c.stroke();
+      c.setLineDash([]);
+      if (o.shape === "arrow") {
+        const ang = o.cx != null ? Math.atan2(y1 - o.cy * scale, x1 - o.cx * scale) : Math.atan2(y1 - y2, x1 - x2);
+        const ah = Math.max(10 * scale, o.width * scale * 4);
+        c.beginPath();
+        c.moveTo(x1, y1);
+        c.lineTo(x1 - ah * Math.cos(ang - 0.45), y1 - ah * Math.sin(ang - 0.45));
+        c.moveTo(x1, y1);
+        c.lineTo(x1 - ah * Math.cos(ang + 0.45), y1 - ah * Math.sin(ang + 0.45));
+        c.stroke();
+      }
+    } else if (o.shape === "hatch") {
+      const pts = o.pts;
+      if (!pts || pts.length < 3) { c.restore(); return; }
+      let bx1 = Infinity, by1 = Infinity, bx2 = -Infinity, by2 = -Infinity;
+      pts.forEach(p => { bx1 = Math.min(bx1, p.x); by1 = Math.min(by1, p.y); bx2 = Math.max(bx2, p.x); by2 = Math.max(by2, p.y); });
+      const hx = bx1 * scale, hy = by1 * scale, hw = (bx2 - bx1) * scale, hh = (by2 - by1) * scale;
+      function tracePath() {
+        c.beginPath();
+        c.moveTo(pts[0].x * scale, pts[0].y * scale);
+        for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].x * scale, pts[i].y * scale);
+        c.closePath();
+      }
+      c.save();
+      c.globalAlpha = o.alpha != null ? o.alpha : 0.4;
+      tracePath(); c.clip();
+      const sp = Math.max(6 * scale, o.width * scale * 5);
+      if (o.pattern === "solid") {
+        c.fillStyle = o.color;
+        c.fillRect(hx, hy, hw, hh);
+      } else if (o.pattern === "dots") {
+        c.fillStyle = o.color;
+        for (let yy = hy + sp / 2; yy < hy + hh; yy += sp)
+          for (let xx = hx + sp / 2; xx < hx + hw; xx += sp) {
+            c.beginPath(); c.arc(xx, yy, Math.max(1, o.width * scale * 0.8), 0, Math.PI * 2); c.fill();
+          }
+      } else {
+        c.strokeStyle = o.color;
+        c.lineWidth = Math.max(1, o.width * scale * 0.6);
+        c.beginPath();
+        for (let d = -hh; d < hw; d += sp) {
+          c.moveTo(hx + d, hy + hh); c.lineTo(hx + d + hh, hy);
+        }
+        if (o.pattern === "cross") {
+          for (let d = 0; d < hw + hh; d += sp) {
+            c.moveTo(hx + d - hh, hy); c.lineTo(hx + d, hy + hh);
+          }
+        }
+        c.stroke();
+      }
+      c.restore();
+      c.save();
+      c.globalAlpha = Math.min(1, (o.alpha != null ? o.alpha : 0.4) + 0.25);
+      c.strokeStyle = o.color;
+      c.lineWidth = Math.max(1, o.width * scale * 0.5);
+      tracePath(); c.stroke();
+      c.restore();
+    } else if (o.shape === "rect") {
+      c.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+    } else if (o.shape === "ellipse") {
+      c.beginPath();
+      c.ellipse((x1 + x2) / 2, (y1 + y2) / 2, Math.abs(x2 - x1) / 2, Math.abs(y2 - y1) / 2, 0, 0, Math.PI * 2);
+      c.stroke();
+    } else if (o.shape === "cloud") {
+      drawCloud(c, Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+    }
+    c.restore();
+    return;
+  }
+
+  if (o.kind === "callout") {
+    const x1 = o.x1 * scale, y1 = o.y1 * scale, x2 = o.x2 * scale, y2 = o.y2 * scale;
+    const fs = o.size * scale;
+    c.save();
+    c.strokeStyle = o.color;
+    c.lineWidth = Math.max(1, o.width * scale);
+    c.lineCap = "round";
+    c.beginPath(); c.moveTo(x2, y2); c.lineTo(x1, y1); c.stroke();
+    const ang = Math.atan2(y1 - y2, x1 - x2);
+    const ah = Math.max(9 * scale, o.width * scale * 4);
+    c.beginPath();
+    c.moveTo(x1, y1);
+    c.lineTo(x1 - ah * Math.cos(ang - 0.45), y1 - ah * Math.sin(ang - 0.45));
+    c.moveTo(x1, y1);
+    c.lineTo(x1 - ah * Math.cos(ang + 0.45), y1 - ah * Math.sin(ang + 0.45));
+    c.stroke();
+    c.font = "bold " + fs + "px system-ui, sans-serif";
+    const tw = c.measureText(o.text).width;
+    const pad = fs * 0.35;
+    if (o.bg !== false) {
+      c.fillStyle = "#ffffff";
+      c.strokeStyle = o.color;
+      c.fillRect(x2 - pad, y2 - fs / 2 - pad, tw + pad * 2, fs + pad * 2);
+      c.strokeRect(x2 - pad, y2 - fs / 2 - pad, tw + pad * 2, fs + pad * 2);
+    }
+    c.fillStyle = o.color;
+    c.textAlign = "left"; c.textBaseline = "middle";
+    c.fillText(o.text, x2, y2);
+    c.restore();
+  }
+}
+
+function drawCloud(c, x, y, w, h) {
+  if (w < 4 || h < 4) return;
+  const r = Math.max(6, Math.min(w, h) / 6);
+  c.beginPath();
+  const edges = [
+    { fx: x, fy: y, tx: x + w, ty: y },
+    { fx: x + w, fy: y, tx: x + w, ty: y + h },
+    { fx: x + w, fy: y + h, tx: x, ty: y + h },
+    { fx: x, fy: y + h, tx: x, ty: y }
+  ];
+  edges.forEach(e => {
+    const len = Math.hypot(e.tx - e.fx, e.ty - e.fy);
+    const n = Math.max(1, Math.round(len / (r * 2)));
+    for (let i = 0; i < n; i++) {
+      const ax = e.fx + (e.tx - e.fx) * (i / n);
+      const ay = e.fy + (e.ty - e.fy) * (i / n);
+      const bx = e.fx + (e.tx - e.fx) * ((i + 1) / n);
+      const by = e.fy + (e.ty - e.fy) * ((i + 1) / n);
+      const cx2 = (ax + bx) / 2, cy2 = (ay + by) / 2;
+      const rad = Math.hypot(bx - ax, by - ay) / 2;
+      const a1 = Math.atan2(ay - cy2, ax - cx2);
+      const a2 = Math.atan2(by - cy2, bx - cx2);
+      c.arc(cx2, cy2, rad, a1, a2, true);
+    }
+  });
+  c.stroke();
+}
+
+/* ================= Bounds / hit testing ================= */
+function objectBounds(o) {
+  if (o.kind === "sym") {
+    const d = symDims(o);
+    return { x1:o.x - d.w / 2, y1:o.y - d.h / 2, x2:o.x + d.w / 2, y2:o.y + d.h / 2 };
+  }
+  if (o.kind === "ink") {
+    let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+    o.points.forEach(p => { x1 = Math.min(x1, p.x); y1 = Math.min(y1, p.y); x2 = Math.max(x2, p.x); y2 = Math.max(y2, p.y); });
+    return { x1, y1, x2, y2 };
+  }
+  if (o.kind === "text") {
+    const d = textBlockDims(o);
+    return { x1:o.x, y1:o.y, x2:o.x + d.w, y2:o.y + d.h };
+  }
+  if (o.kind === "img") {
+    return { x1:o.x, y1:o.y, x2:o.x + o.w, y2:o.y + o.h };
+  }
+  if (o.kind === "shape") {
+    if (o.shape === "hatch" && o.pts) {
+      let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+      o.pts.forEach(p => { x1 = Math.min(x1, p.x); y1 = Math.min(y1, p.y); x2 = Math.max(x2, p.x); y2 = Math.max(y2, p.y); });
+      return { x1, y1, x2, y2 };
+    }
+    if (o.cx != null) {
+      const mx = 0.25 * o.x1 + 0.5 * o.cx + 0.25 * o.x2, my = 0.25 * o.y1 + 0.5 * o.cy + 0.25 * o.y2;
+      return { x1:Math.min(o.x1, o.x2, mx), y1:Math.min(o.y1, o.y2, my), x2:Math.max(o.x1, o.x2, mx), y2:Math.max(o.y1, o.y2, my) };
+    }
+    return { x1:Math.min(o.x1, o.x2), y1:Math.min(o.y1, o.y2), x2:Math.max(o.x1, o.x2), y2:Math.max(o.y1, o.y2) };
+  }
+  if (o.kind === "callout") {
+    const tw = o.text.length * o.size * 0.55;
+    return { x1:Math.min(o.x1, o.x2 - o.size), y1:Math.min(o.y1, o.y2 - o.size),
+             x2:Math.max(o.x1, o.x2 + tw + o.size), y2:Math.max(o.y1, o.y2 + o.size) };
+  }
+  return { x1:0, y1:0, x2:0, y2:0 };
+}
+
+const mctx = document.createElement("canvas").getContext("2d");
+function textFont(o, scale) {
+  return (o.italic ? "italic " : "") + (o.bold !== false ? "bold " : "") + (o.size * (scale || 1)) + "px system-ui, sans-serif";
+}
+function textLines(o) {
+  mctx.font = textFont(o, 1);
+  const paras = String(o.text).split("\n");
+  if (!o.w) return paras;
+  const lines = [];
+  paras.forEach(p => {
+    const words = p.split(" ");
+    let cur = "";
+    words.forEach(wd => {
+      const t = cur ? cur + " " + wd : wd;
+      if (mctx.measureText(t).width > o.w && cur) { lines.push(cur); cur = wd; }
+      else cur = t;
+    });
+    lines.push(cur);
+  });
+  return lines;
+}
+function textBlockDims(o) {
+  mctx.font = textFont(o, 1);
+  const lines = textLines(o);
+  let w = 0;
+  lines.forEach(l => { w = Math.max(w, mctx.measureText(l).width); });
+  if (o.w) w = Math.max(w, o.w);
+  return { w:w, h:lines.length * o.size * 1.15, lines:lines };
+}
+
+const imgCache = new Map();
+function getCachedImg(src) {
+  if (!imgCache.has(src)) {
+    const el = new Image();
+    el.onload = () => requestDraw();
+    el.src = src;
+    imgCache.set(src, el);
+  }
+  return imgCache.get(src);
+}
+
+function calloutTextRect(o) {
+  const tw = o.text.length * o.size * 0.55;
+  const pad = o.size * 0.35;
+  return { x1:o.x2 - pad, y1:o.y2 - o.size / 2 - pad, x2:o.x2 + tw + pad, y2:o.y2 + o.size / 2 + pad };
+}
+
+function distToSeg(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  let t = len2 ? ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+function hitObject(px, py) {
+  const p = toImage(px, py);
+  const slack = Math.max(8 / view.scale, 4);
+  for (let i = objects.length - 1; i >= 0; i--) {
+    const o = objects[i];
+    if (o.kind === "ink") {
+      const tol = o.width / 2 + slack;
+      for (let j = 0; j < o.points.length - 1; j++) {
+        if (distToSeg(p, o.points[j], o.points[j + 1]) <= tol) return o;
+      }
+    } else if (o.kind === "shape" && (o.shape === "line" || o.shape === "arrow")) {
+      if (o.cx != null) {
+        let prev = { x:o.x1, y:o.y1 };
+        let hitCurve = false;
+        for (let s2 = 1; s2 <= 16; s2++) {
+          const t = s2 / 16, mt = 1 - t;
+          const q = { x:mt * mt * o.x1 + 2 * mt * t * o.cx + t * t * o.x2,
+                      y:mt * mt * o.y1 + 2 * mt * t * o.cy + t * t * o.y2 };
+          if (distToSeg(p, prev, q) <= o.width / 2 + slack) { hitCurve = true; break; }
+          prev = q;
+        }
+        if (hitCurve) return o;
+      } else if (distToSeg(p, { x:o.x1, y:o.y1 }, { x:o.x2, y:o.y2 }) <= o.width / 2 + slack) return o;
+    } else if (o.kind === "shape" && o.shape === "hatch" && o.pts) {
+      let inside = false;
+      const pts = o.pts;
+      for (let a = 0, b = pts.length - 1; a < pts.length; b = a++) {
+        if ((pts[a].y > p.y) !== (pts[b].y > p.y) &&
+            p.x < (pts[b].x - pts[a].x) * (p.y - pts[a].y) / (pts[b].y - pts[a].y) + pts[a].x) inside = !inside;
+      }
+      if (inside) return o;
+    } else if (o.kind === "callout") {
+      if (distToSeg(p, { x:o.x1, y:o.y1 }, { x:o.x2, y:o.y2 }) <= o.width / 2 + slack) return o;
+      const b = calloutTextRect(o);
+      if (p.x >= b.x1 - slack && p.x <= b.x2 + slack && p.y >= b.y1 - slack && p.y <= b.y2 + slack) return o;
+    } else {
+      const b = objectBounds(o);
+      if (p.x >= b.x1 - slack && p.x <= b.x2 + slack && p.y >= b.y1 - slack && p.y <= b.y2 + slack) return o;
+    }
+  }
+  return null;
+}
+
+/* ================= Handles (single selection) ================= */
+function getHandles(o) {
+  const H = [];
+  if (o.kind === "sym") {
+    const d = symDims(o);
+    H.push({ x:o.x + d.w / 2, y:o.y + d.h / 2, set:(nx, ny) => {
+      const k = Math.max((nx - o.x) * 2 * (o.size / d.w), (ny - o.y) * 2 * (o.size / d.h));
+      o.size = Math.max(12, Math.min(400, k));
+    }});
+  } else if (o.kind === "text") {
+    const b = objectBounds(o);
+    H.push({ x:b.x2, y:(b.y1 + b.y2) / 2, set:(nx, ny) => {
+      o.w = Math.max(o.size * 2, nx - o.x);
+    }});
+  } else if (o.kind === "img") {
+    const corners = [
+      { gx:() => o.x, gy:() => o.y, set:(nx, ny) => { const r = o.x + o.w, b2 = o.y + o.h; o.x = Math.min(nx, r - 15); o.y = Math.min(ny, b2 - 15); o.w = r - o.x; o.h = b2 - o.y; } },
+      { gx:() => o.x + o.w, gy:() => o.y, set:(nx, ny) => { const b2 = o.y + o.h; o.w = Math.max(15, nx - o.x); o.y = Math.min(ny, b2 - 15); o.h = b2 - o.y; } },
+      { gx:() => o.x, gy:() => o.y + o.h, set:(nx, ny) => { const r = o.x + o.w; o.x = Math.min(nx, r - 15); o.w = r - o.x; o.h = Math.max(15, ny - o.y); } },
+      { gx:() => o.x + o.w, gy:() => o.y + o.h, set:(nx, ny) => { o.w = Math.max(15, nx - o.x); o.h = Math.max(15, ny - o.y); } }
+    ];
+    corners.forEach(c2 => H.push({ x:c2.gx(), y:c2.gy(), set:c2.set }));
+  } else if (o.kind === "callout") {
+    H.push({ x:o.x1, y:o.y1, set:(nx, ny) => { o.x1 = nx; o.y1 = ny; } });
+    H.push({ x:o.x2, y:o.y2, set:(nx, ny) => { o.x2 = nx; o.y2 = ny; } });
+  } else if (o.kind === "shape") {
+    if (o.shape === "hatch" && o.pts) {
+      o.pts.forEach(p => H.push({ x:p.x, y:p.y, set:(nx, ny) => { p.x = nx; p.y = ny; } }));
+      for (let i = 0; i < o.pts.length; i++) {
+        const a = o.pts[i], b = o.pts[(i + 1) % o.pts.length];
+        H.push({
+          x:(a.x + b.x) / 2, y:(a.y + b.y) / 2, edge:true,
+          set:(nx, ny) => {
+            const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+            const dx = nx - mx, dy = ny - my;
+            a.x += dx; a.y += dy; b.x += dx; b.y += dy;
+          }
+        });
+      }
+    } else if (o.shape === "line" || o.shape === "arrow") {
+      H.push({ x:o.x1, y:o.y1, set:(nx, ny) => { o.x1 = nx; o.y1 = ny; } });
+      H.push({ x:o.x2, y:o.y2, set:(nx, ny) => { o.x2 = nx; o.y2 = ny; } });
+      const mx = o.cx != null ? 0.25 * o.x1 + 0.5 * o.cx + 0.25 * o.x2 : (o.x1 + o.x2) / 2;
+      const my = o.cx != null ? 0.25 * o.y1 + 0.5 * o.cy + 0.25 * o.y2 : (o.y1 + o.y2) / 2;
+      H.push({ x:mx, y:my, edge:true, set:(nx, ny) => {
+        o.cx = 2 * nx - (o.x1 + o.x2) / 2;
+        o.cy = 2 * ny - (o.y1 + o.y2) / 2;
+      }});
+    } else {
+      // rect/ellipse/cloud corners
+      H.push({ x:o.x1, y:o.y1, set:(nx, ny) => { o.x1 = nx; o.y1 = ny; } });
+      H.push({ x:o.x2, y:o.y1, set:(nx, ny) => { o.x2 = nx; o.y1 = ny; } });
+      H.push({ x:o.x1, y:o.y2, set:(nx, ny) => { o.x1 = nx; o.y2 = ny; } });
+      H.push({ x:o.x2, y:o.y2, set:(nx, ny) => { o.x2 = nx; o.y2 = ny; } });
+    }
+  }
+  return H;
+}
+
+/* ================= Main draw ================= */
+let tempShape = null;    // shape preview while dragging
+let marquee = null;      // {x1,y1,x2,y2} screen coords
+
+let rafPending = false;
+function requestDraw() {
+  if (rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(() => { rafPending = false; draw(); });
+}
+
+function draw() {
+  const r = stage.getBoundingClientRect();
+  ctx.clearRect(0, 0, r.width, r.height);
+  if (!img) return;
+  const interacting = pointers.size > 0;
+  ctx.save();
+  ctx.translate(view.x, view.y);
+  ctx.scale(view.scale, view.scale);
+  ctx.imageSmoothingEnabled = !interacting;
+  if (!interacting) ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(img, 0, 0);
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(view.x, view.y);
+  objects.forEach(o => drawObject(ctx, o, view.scale));
+  if (tempShape) drawObject(ctx, tempShape, view.scale);
+  selection.forEach(o => {
+    ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+    if (o.kind === "callout") {
+      const b = calloutTextRect(o);
+      const pad = 3;
+      ctx.strokeRect(b.x1 * view.scale - pad, b.y1 * view.scale - pad,
+                     (b.x2 - b.x1) * view.scale + pad * 2, (b.y2 - b.y1) * view.scale + pad * 2);
+      ctx.beginPath();
+      ctx.moveTo(o.x1 * view.scale, o.y1 * view.scale);
+      ctx.lineTo(o.x2 * view.scale, o.y2 * view.scale);
+      ctx.stroke();
+    } else if (o.kind === "shape" && (o.shape === "line" || o.shape === "arrow")) {
+      ctx.beginPath();
+      ctx.moveTo(o.x1 * view.scale, o.y1 * view.scale);
+      if (o.cx != null) ctx.quadraticCurveTo(o.cx * view.scale, o.cy * view.scale, o.x2 * view.scale, o.y2 * view.scale);
+      else ctx.lineTo(o.x2 * view.scale, o.y2 * view.scale);
+      ctx.stroke();
+    } else {
+      const b = objectBounds(o);
+      const pad = 5;
+      ctx.strokeRect(b.x1 * view.scale - pad, b.y1 * view.scale - pad,
+                     (b.x2 - b.x1) * view.scale + pad * 2, (b.y2 - b.y1) * view.scale + pad * 2);
+    }
+    ctx.setLineDash([]);
+  });
+  ctx.restore();
+
+  if (selection.length === 1) {
+    const hs = getHandles(selection[0]);
+    ctx.save();
+    hs.forEach(hd => {
+      const hx = hd.x * view.scale + view.x, hy = hd.y * view.scale + view.y;
+      ctx.fillStyle = "#ffffff"; ctx.strokeStyle = "#00a5c8"; ctx.lineWidth = 2;
+      if (hd.edge) {
+        ctx.beginPath(); ctx.arc(hx, hy, 6, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+      } else {
+        ctx.fillRect(hx - 6, hy - 6, 12, 12);
+        ctx.strokeRect(hx - 6, hy - 6, 12, 12);
+      }
+    });
+    ctx.restore();
+  }
+
+  if (marquee) {
+    ctx.save();
+    ctx.strokeStyle = "#00e5ff"; ctx.fillStyle = "rgba(0,229,255,0.08)";
+    ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+    const mx = Math.min(marquee.x1, marquee.x2), my = Math.min(marquee.y1, marquee.y2);
+    ctx.fillRect(mx, my, Math.abs(marquee.x2 - marquee.x1), Math.abs(marquee.y2 - marquee.y1));
+    ctx.strokeRect(mx, my, Math.abs(marquee.x2 - marquee.x1), Math.abs(marquee.y2 - marquee.y1));
+    ctx.restore();
+  }
+  updateStatus();
+}
+
+function updateStatus() {
+  if (!img) { statusEl.textContent = "No plan loaded"; return; }
+  const syms = objects.filter(o => o.kind === "sym").length;
+  const marks = objects.length - syms;
+  let s = syms + " devices · " + marks + " markups · zoom " + Math.round(view.scale * 100) + "%";
+  if (selection.length > 1) s = selection.length + " selected · " + s;
+  if (lastSaveNote) s += " · " + lastSaveNote;
+  statusEl.textContent = s;
+  TYPES.forEach(t => {
+    const n = objects.filter(o => o.kind === "sym" && o.type === t.id).length;
+    const el = document.getElementById("cnt-" + t.id);
+    if (el) el.textContent = n > 0 ? n : "";
+  });
+}
+
+/* ================= Undo / redo ================= */
+function pushUndo() {
+  undoStack.push(JSON.stringify(objects));
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack = [];
+}
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(JSON.stringify(objects));
+  objects = JSON.parse(undoStack.pop());
+  clearSelection();
+  draw();
+}
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(JSON.stringify(objects));
+  objects = JSON.parse(redoStack.pop());
+  clearSelection();
+  draw();
+}
+
+/* ================= Selection helpers ================= */
+function clearSelection() { selection = []; updateSelButtons(); }
+function setSelection(arr) { selection = arr; updateSelButtons(); }
+
+const btnDup = document.getElementById("btnDup");
+const btnDel = document.getElementById("btnDel");
+const btnDetails = document.getElementById("btnDetails");
+const btnRotate = document.getElementById("btnRotate");
+const btnFlipH = document.getElementById("btnFlipH");
+const btnFlipV = document.getElementById("btnFlipV");
+
+function updateSelButtons() {
+  const any = selection.length > 0;
+  btnDup.disabled = !any;
+  btnDel.disabled = !any;
+  btnRotate.disabled = !any;
+  btnFlipH.disabled = !any;
+  btnFlipV.disabled = !any;
+  btnDetails.disabled = !(selection.some(o => o.kind === "sym") ||
+    (selection.length === 1 && (selection[0].kind === "text" || selection[0].kind === "callout")));
+  document.getElementById("btnHalf").disabled = !any;
+  document.getElementById("btnSame").disabled = !(selection.length >= 1 && selection.every(o => o.kind === "sym" && o.type === selection[0].type));
+  document.getElementById("btnGroup").disabled = selection.length < 2;
+  document.getElementById("btnUngroup").disabled = !selection.some(o => o.grp);
+  document.getElementById("btnFlatten").disabled = !any;
+  document.getElementById("btnCopy").disabled = !any;
+  document.getElementById("btnPaste").disabled = !clipboardObjs.length || !img;
+  const styleTargets = selection.filter(o => (o.kind === "shape" && (o.shape === "line" || o.shape === "arrow" || o.shape === "rect" || o.shape === "ellipse")));
+  const swp = document.getElementById("styleWrap");
+  const toolStylable = ["line", "arrow", "rect", "ellipse"].includes(activeTool);
+  swp.style.display = (styleTargets.length || toolStylable) ? "flex" : "none";
+  if (styleTargets.length) document.getElementById("lineStyleSel").value = styleTargets[0].ls || "solid";
+  const alphaTargets = selection.filter(o => (o.kind === "shape" && o.shape === "hatch") || o.kind === "img");
+  const aw = document.getElementById("alphaWrap");
+  aw.style.display = alphaTargets.length ? "flex" : "none";
+  if (alphaTargets.length) {
+    const a0 = alphaTargets[0].alpha != null ? alphaTargets[0].alpha : (alphaTargets[0].kind === "img" ? 1 : 0.4);
+    document.getElementById("alphaSlider").value = Math.round(a0 * 100);
+  }
+  if (selection.length === 1) {
+    const o = selection[0];
+    if (o.kind === "sym" || o.kind === "text" || o.kind === "callout") sizeSlider.value = sliderFromSize(o.size);
+    else if (o.kind === "ink" || o.kind === "shape") sizeSlider.value = sliderFromSize(o.width * 8);
+  }
+}
+
+btnDup.onclick = () => {
+  if (!selection.length) return;
+  pushUndo();
+  const copies = selection.map(o => {
+    const c = JSON.parse(JSON.stringify(o));
+    const off = 30;
+    if (c.kind === "ink") c.points.forEach(pt => { pt.x += off; pt.y += off; });
+    else if (c.pts) c.pts.forEach(pt => { pt.x += off; pt.y += off; });
+    else if (c.kind === "shape" || c.kind === "callout") { c.x1 += off; c.y1 += off; c.x2 += off; c.y2 += off; }
+    else { c.x += off; c.y += off; }
+    return c;
+  });
+  objects.push(...copies);
+  setSelection(copies);
+  draw();
+};
+
+btnDel.onclick = () => {
+  if (!selection.length) return;
+  pushUndo();
+  objects = objects.filter(o => !selection.includes(o));
+  clearSelection();
+  draw();
+};
+
+/* ---- rotate / flip ---- */
+function rasterTransform(o, mode) {
+  const el = getCachedImg(o.src);
+  if (!el || !el.complete || !el.naturalWidth) return;
+  const c = document.createElement("canvas");
+  const cx = c.getContext("2d");
+  if (mode === "rot") {
+    c.width = el.naturalHeight; c.height = el.naturalWidth;
+    cx.translate(c.width / 2, c.height / 2);
+    cx.rotate(Math.PI / 2);
+    cx.drawImage(el, -el.naturalWidth / 2, -el.naturalHeight / 2);
+    const ctr = { x:o.x + o.w / 2, y:o.y + o.h / 2 };
+    const nw = o.h, nh = o.w;
+    o.x = ctr.x - nw / 2; o.y = ctr.y - nh / 2; o.w = nw; o.h = nh;
+  } else {
+    c.width = el.naturalWidth; c.height = el.naturalHeight;
+    if (mode === "h") { cx.scale(-1, 1); cx.drawImage(el, -c.width, 0); }
+    else { cx.scale(1, -1); cx.drawImage(el, 0, -c.height); }
+  }
+  o.src = c.toDataURL("image/jpeg", 0.9);
+}
+
+function rotObj(o) {
+  if (o.kind === "sym") { o.rot = ((o.rot || 0) + 90) % 360; return; }
+  if (o.kind === "img") { rasterTransform(o, "rot"); return; }
+  if (o.pts) {
+    const b = objectBounds(o);
+    const cx = (b.x1 + b.x2) / 2, cy = (b.y1 + b.y2) / 2;
+    o.pts.forEach(p => { const nx = cx - (p.y - cy), ny = cy + (p.x - cx); p.x = nx; p.y = ny; });
+    return;
+  }
+  const b = objectBounds(o);
+  const cx = (b.x1 + b.x2) / 2, cy = (b.y1 + b.y2) / 2;
+  const rp = p => { const nx = cx - (p.y - cy), ny = cy + (p.x - cx); p.x = nx; p.y = ny; };
+  if (o.kind === "ink") o.points.forEach(rp);
+  else if (o.kind === "shape" || o.kind === "callout") {
+    const p1 = { x:o.x1, y:o.y1 }, p2 = { x:o.x2, y:o.y2 };
+    rp(p1); rp(p2);
+    o.x1 = p1.x; o.y1 = p1.y; o.x2 = p2.x; o.y2 = p2.y;
+    if (o.cx != null) { const pc = { x:o.cx, y:o.cy }; rp(pc); o.cx = pc.x; o.cy = pc.y; }
+  }
+}
+function flipObj(o, axis) {
+  if (o.kind === "sym") {
+    if (axis === "h") o.fx = !o.fx; else o.fy = !o.fy;
+    return;
+  }
+  if (o.kind === "img") { rasterTransform(o, axis); return; }
+  if (o.pts) {
+    const b = objectBounds(o);
+    const cx = (b.x1 + b.x2) / 2, cy = (b.y1 + b.y2) / 2;
+    o.pts.forEach(p => { if (axis === "h") p.x = 2 * cx - p.x; else p.y = 2 * cy - p.y; });
+    return;
+  }
+  const b = objectBounds(o);
+  const cx = (b.x1 + b.x2) / 2, cy = (b.y1 + b.y2) / 2;
+  const fp = p => { if (axis === "h") p.x = 2 * cx - p.x; else p.y = 2 * cy - p.y; };
+  if (o.kind === "ink") o.points.forEach(fp);
+  else if (o.kind === "shape" || o.kind === "callout") {
+    const p1 = { x:o.x1, y:o.y1 }, p2 = { x:o.x2, y:o.y2 };
+    fp(p1); fp(p2);
+    o.x1 = p1.x; o.y1 = p1.y; o.x2 = p2.x; o.y2 = p2.y;
+    if (o.cx != null) { const pc = { x:o.cx, y:o.cy }; fp(pc); o.cx = pc.x; o.cy = pc.y; }
+  }
+}
+btnRotate.onclick = () => { if (!selection.length) return; pushUndo(); selection.forEach(rotObj); draw(); };
+btnFlipH.onclick = () => { if (!selection.length) return; pushUndo(); selection.forEach(o => flipObj(o, "h")); draw(); };
+btnFlipV.onclick = () => { if (!selection.length) return; pushUndo(); selection.forEach(o => flipObj(o, "v")); draw(); };
+document.getElementById("alphaSlider").addEventListener("input", () => {
+  const v = (+document.getElementById("alphaSlider").value) / 100;
+  selection.forEach(o => {
+    if ((o.kind === "shape" && o.shape === "hatch") || o.kind === "img") o.alpha = v;
+  });
+  requestDraw();
+});
+document.getElementById("alphaSlider").addEventListener("change", scheduleAutosave);
+
+document.getElementById("btnFlatten").onclick = () => {
+  if (!selection.length || !img) return;
+  if (!window.confirm("Flatten " + selection.length + " item(s) permanently into the plan? This cannot be undone.")) return;
+  // grow the page to cover anything being flattened outside the current plan
+  let minX = 0, minY = 0, maxX = img.naturalWidth, maxY = img.naturalHeight;
+  selection.forEach(o => {
+    const b = objectBounds(o);
+    const pad = 8;
+    minX = Math.min(minX, b.x1 - pad); minY = Math.min(minY, b.y1 - pad);
+    maxX = Math.max(maxX, b.x2 + pad); maxY = Math.max(maxY, b.y2 + pad);
+  });
+  minX = Math.floor(minX); minY = Math.floor(minY);
+  const W = Math.ceil(maxX - minX), H = Math.ceil(maxY - minY);
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const cx = c.getContext("2d");
+  cx.fillStyle = "#ffffff";
+  cx.fillRect(0, 0, W, H);
+  cx.save();
+  cx.translate(-minX, -minY);
+  cx.drawImage(img, 0, 0);
+  objects.forEach(o => { if (selection.includes(o)) drawObject(cx, o, 1); });
+  cx.restore();
+  const keep = objects.filter(o => !selection.includes(o));
+  const shift = o => {
+    if (o.kind === "ink") o.points.forEach(pt => { pt.x -= minX; pt.y -= minY; });
+    else if (o.pts) o.pts.forEach(pt => { pt.x -= minX; pt.y -= minY; });
+    else if (o.kind === "shape" || o.kind === "callout") {
+      o.x1 -= minX; o.y1 -= minY; o.x2 -= minX; o.y2 -= minY;
+      if (o.cx != null) { o.cx -= minX; o.cy -= minY; }
+    } else { o.x -= minX; o.y -= minY; }
+  };
+  if (minX !== 0 || minY !== 0) {
+    keep.forEach(shift);
+    if (minY < 0 && pageBaseH != null) pageBaseH -= minY;
+    view.x += minX * view.scale;
+    view.y += minY * view.scale;
+  }
+  const dataUrl = c.toDataURL("image/jpeg", 0.92);
+  const im = new Image();
+  im.onload = () => {
+    objects = keep;
+    clearSelection();
+    setImage(im, dataUrl, true, true);
+  };
+  im.src = dataUrl;
+};
+
+document.getElementById("btnHalf").onclick = () => {
+  if (!selection.length) return;
+  pushUndo();
+  const on = !selection.every(o => o.half);
+  selection.forEach(o => { o.half = on; });
+  draw();
+};
+document.getElementById("btnGroup").onclick = () => {
+  if (selection.length < 2) return;
+  pushUndo();
+  const gid = "g" + Date.now();
+  selection.forEach(o => { o.grp = gid; });
+  updateSelButtons();
+};
+document.getElementById("btnUngroup").onclick = () => {
+  if (!selection.some(o => o.grp)) return;
+  pushUndo();
+  selection.forEach(o => { delete o.grp; });
+  updateSelButtons();
+};
+document.getElementById("btnSame").onclick = () => {
+  if (!selection.length || selection[0].kind !== "sym") return;
+  const ty = selection[0].type;
+  setSelection(objects.filter(o => o.kind === "sym" && o.type === ty));
+  draw();
+};
+
+sizeSlider.addEventListener("input", () => {
+  if (!selection.length) return;
+  const v = sizeVal();
+  selection.forEach(o => {
+    if (o.kind === "ink" || o.kind === "shape") o.width = v / 8;
+    else if (o.kind === "sym" || o.kind === "text" || o.kind === "callout") o.size = v;
+  });
+  draw();
+});
+
+/* ================= Palette / tabs UI ================= */
+const paletteEl = document.getElementById("palette");
+const tabsEl = document.getElementById("sideTabs");
+
+function drawPalIcon(canvasEl, typeId) {
+  const c = canvasEl.getContext("2d");
+  const dpr = 2;
+  canvasEl.width = 34 * dpr; canvasEl.height = 34 * dpr;
+  c.scale(dpr, dpr);
+  const t = TYPE_MAP[typeId];
+  const iconColor = t.color === "#111111" ? "#d8d8d8" : undefined;
+  const size = (t.glyph === "circle" || t.glyph === "sqtext" || t.glyph === "phone" ||
+                t.glyph === "hreel" || t.glyph === "exting") ? 26 : 15;
+  const bigGlyphs = ["widetext", "exit", "db", "horn", "dbldoor", "sldoor", "rldoor", "window", "opening", "stair", "sndr"];
+  drawSym(c, { kind:"sym", type:typeId, x:17, y:17, color:iconColor,
+    size: bigGlyphs.includes(t.glyph) ? 14 : (t.glyph === "door" || t.glyph === "lstair" || t.glyph === "dba") ? 18 : 26 }, 1);
+}
+
+const TAB_ICONS = { fav:"★", fire:"🔥", exit:"🚶", elec:"⚡", bldg:"🏗", markup:"✏️", tools:"🧰" };
+function buildTabs() {
+  tabsEl.innerHTML = "";
+  TABS.forEach(tb => {
+    const d = document.createElement("div");
+    d.className = "tab" + (tb.id === activeTab ? " active" : "");
+    d.id = "tab-" + tb.id;
+    const ic = document.createElement("span");
+    ic.className = "ti";
+    ic.textContent = TAB_ICONS[tb.id] || "▦";
+    d.appendChild(ic);
+    if (tb.id !== "fav") {
+      const lb = document.createElement("span");
+      lb.textContent = tb.label;
+      d.appendChild(lb);
+    }
+    d.onclick = () => { activeTab = tb.id; buildPalette(); };
+    tabsEl.appendChild(d);
+  });
+}
+function refreshTabs() {
+  TABS.forEach(tb => {
+    const el = document.getElementById("tab-" + tb.id);
+    if (el) el.classList.toggle("active", tb.id === activeTab);
+  });
+}
+
+const DEFAULT_FAVS = ["smoke", "csmoke", "thermal", "cthermal", "fip", "fdcie", "mcp", "wip", "sounder"];
+let favIds;
+try { favIds = JSON.parse(localStorage.getItem("bpm-favs") || "null") || DEFAULT_FAVS.slice(); }
+catch (e) { favIds = DEFAULT_FAVS.slice(); }
+
+function isFav(id) { return favIds.includes(id); }
+function toggleFav(id) {
+  if (isFav(id)) favIds = favIds.filter(f => f !== id);
+  else favIds.push(id);
+  try { localStorage.setItem("bpm-favs", JSON.stringify(favIds)); } catch (e) {}
+  buildPalette();
+}
+
+let tabOrder = {};
+try { tabOrder = JSON.parse(localStorage.getItem("bpm-order") || "{}"); } catch (e) {}
+function saveTabOrder() { try { localStorage.setItem("bpm-order", JSON.stringify(tabOrder)); } catch (e) {} }
+
+function applyOrder(ids, tab) {
+  const saved = tab === "fav" ? null : tabOrder[tab];
+  if (!saved) return ids;
+  const pos = {};
+  saved.forEach((id, i) => { pos[id] = i; });
+  return ids.slice().sort((a, b) => (pos[a] != null ? pos[a] : 999) - (pos[b] != null ? pos[b] : 999));
+}
+
+function commitReorder(dragId, clientX) {
+  const tiles = [...paletteEl.querySelectorAll(".pal")];
+  const ids = tiles.map(el => el.id.replace("pal-", ""));
+  const rest = ids.filter(i => i !== dragId);
+  let insert = rest.length;
+  for (let i = 0; i < rest.length; i++) {
+    const el = document.getElementById("pal-" + rest[i]);
+    const r = el.getBoundingClientRect();
+    if (clientX < r.left + r.width / 2) { insert = i; break; }
+  }
+  rest.splice(insert, 0, dragId);
+  if (activeTab === "fav") { favIds = rest; try { localStorage.setItem("bpm-favs", JSON.stringify(favIds)); } catch (e) {} }
+  else { tabOrder[activeTab] = rest; saveTabOrder(); }
+  buildPalette();
+}
+
+function attachTileGestures(el, id) {
+  let liftTimer = null, favTimer = null, lifted = false, moved2 = false;
+  let down = false, x0 = 0, y0 = 0, lastX = 0, suppress = false;
+  el.addEventListener("click", e => {
+    if (suppress) { suppress = false; e.stopImmediatePropagation(); e.preventDefault(); }
+  }, true);
+  el.addEventListener("pointerdown", e => {
+    down = true; suppress = false;
+    x0 = e.clientX; y0 = e.clientY; lastX = e.clientX;
+    lifted = false; moved2 = false;
+    el.setPointerCapture(e.pointerId);
+    liftTimer = setTimeout(() => { lifted = true; el.classList.add("lift"); }, 500);
+    favTimer = setTimeout(() => {
+      if (navigator.vibrate) navigator.vibrate(40);
+      clearTimeout(liftTimer);
+      el.classList.remove("lift");
+      lifted = false;
+      suppress = true;
+      toggleFav(id);
+    }, 2000);
+  });
+  el.addEventListener("pointermove", e => {
+    if (!down) return;
+    const dx = e.clientX - x0, dy = e.clientY - y0;
+    if (!lifted) {
+      if (Math.hypot(dx, dy) > 10) {
+        clearTimeout(liftTimer); clearTimeout(favTimer);
+        moved2 = true;
+        paletteEl.scrollLeft -= (e.clientX - lastX);   // manual palette scroll
+        suppress = true;
+      }
+    } else {
+      clearTimeout(favTimer);
+      el.style.transform = "translateX(" + dx + "px) scale(1.06)";
+      moved2 = true;
+      suppress = true;
+    }
+    lastX = e.clientX;
+  });
+  const finish = e => {
+    if (!down) return;
+    down = false;
+    clearTimeout(liftTimer); clearTimeout(favTimer);
+    if (lifted) {
+      el.classList.remove("lift");
+      el.style.transform = "";
+      if (moved2) commitReorder(id, e.clientX);
+      lifted = false;
+    }
+  };
+  el.addEventListener("pointerup", finish);
+  el.addEventListener("pointercancel", finish);
+}
+const attachLongPress = attachTileGestures;
+
+function entriesForTab(tab) {
+  if (tab === "fav") {
+    return favIds.map(id => {
+      if (TYPE_MAP[id]) return { kind:"sym", t:TYPE_MAP[id] };
+      const m = MARKUP_TOOLS.find(mt => mt.id === id) || TOOLS_TAB.find(mt => mt.id === id);
+      return m ? { kind:"tool", t:m } : null;
+    }).filter(Boolean);
+  }
+  if (tab === "markup") {
+    const ids = applyOrder(MARKUP_TOOLS.map(t => t.id), tab);
+    return ids.map(id => ({ kind:"tool", t:MARKUP_TOOLS.find(m => m.id === id) })).filter(e => e.t);
+  }
+  if (tab === "tools") return TOOLS_TAB.map(t => ({ kind:"tool", t }));
+  const ids = applyOrder(TYPES.filter(t => t.tab === tab).map(t => t.id), tab);
+  return ids.map(id => ({ kind:"sym", t:TYPE_MAP[id] })).filter(e => e.t);
+}
+
+function buildPalette() {
+  refreshTabs();
+  paletteEl.innerHTML = "";
+  const entries = entriesForTab(activeTab);
+  if (!entries.length) {
+    const hint = document.createElement("div");
+    hint.style.cssText = "font-size:12px;color:#888;padding:10px";
+    hint.textContent = "Press & hold any tool to add it to Favourites.";
+    paletteEl.appendChild(hint);
+  }
+  entries.forEach(en => {
+    const t = en.t;
+    const d = document.createElement("div");
+    d.className = "pal" + (activeTool === t.id ? " active" : "");
+    d.id = "pal-" + t.id;
+    d.title = "Press & hold to add/remove from Favourites";
+    if (en.kind === "tool") {
+      d.innerHTML = '<div class="sym">' + t.icon + '</div>';
+    } else {
+      const ic = document.createElement("canvas");
+      d.appendChild(ic);
+      drawPalIcon(ic, t.id);
+    }
+    const lbl = document.createElement("div");
+    lbl.className = "lbl";
+    lbl.textContent = (isFav(t.id) ? "\u2605 " : "") + t.label;
+    d.appendChild(lbl);
+    const cnt = document.createElement("div");
+    cnt.className = "cnt";
+    if (en.kind === "sym") cnt.id = "cnt-" + t.id;
+    d.appendChild(cnt);
+    d.onclick = () => {
+      if (t.id === "image") { document.getElementById("imgObjInput").click(); return; }
+      if (t.id === "camera") { document.getElementById("cameraInput").click(); return; }
+      if (t.id === "meter") { openMeter(); return; }
+      if (t.id === "timer") { openTimer(); return; }
+      if (t.id === "photos") { openPhotosGallery(); return; }
+      setTool(t.id);
+    };
+    attachLongPress(d, t.id);
+    paletteEl.appendChild(d);
+  });
+  updateStatus();
+}
+
+function setTool(id) {
+  activeTool = id;
+  document.getElementById("styleWrap").style.display =
+    ["line", "arrow", "rect", "ellipse"].includes(id) ? "flex" : "none";
+  document.getElementById("mode-pan").classList.toggle("active", id === "pan");
+  document.getElementById("mode-select").classList.toggle("active", id === "select");
+  document.getElementById("mode-test").classList.toggle("active", id === "test");
+  document.getElementById("testWrap").style.display = id === "test" ? "flex" : "none";
+  if (id === "test") clearSelection();
+  document.querySelectorAll(".pal").forEach(p => p.classList.remove("active"));
+  const el = document.getElementById("pal-" + id);
+  if (el) el.classList.add("active");
+  if (id === "pan") clearSelection();
+  draw();
+}
+document.getElementById("mode-pan").onclick = () => setTool("pan");
+document.getElementById("mode-select").onclick = () => setTool("select");
+document.getElementById("mode-test").onclick = () => setTool("test");
+let multiMode = false;
+document.getElementById("mode-multi").onclick = () => {
+  multiMode = !multiMode;
+  document.getElementById("mode-multi").classList.toggle("active", multiMode);
+  if (multiMode && activeTool !== "select") setTool("select");
+};
+document.getElementById("testYear").addEventListener("change", e => { testYearSel = +e.target.value; requestDraw(); });
+document.getElementById("lineStyleSel").addEventListener("change", e => {
+  lineStyle = e.target.value;
+  const targets = selection.filter(o => (o.kind === "shape" && (o.shape === "line" || o.shape === "arrow" || o.shape === "rect" || o.shape === "ellipse")));
+  if (targets.length) {
+    pushUndo();
+    targets.forEach(o => { o.ls = lineStyle; });
+    draw();
+  }
+});
+buildTabs();
+buildPalette();
+
+/* ================= Colour swatches ================= */
+const swatchesEl = document.getElementById("swatches");
+PALETTE_COLORS.forEach((c, i) => {
+  const s = document.createElement("div");
+  s.className = "swatch" + (i === 0 ? " active" : "");
+  s.style.background = c;
+  s.onclick = () => {
+    penColor = c;
+    document.querySelectorAll(".swatch").forEach(x => x.classList.remove("active"));
+    s.classList.add("active");
+    if (selection.length) {
+      pushUndo();
+      selection.forEach(o => { o.color = c; });
+      draw();
+    }
+  };
+  swatchesEl.appendChild(s);
+});
+
+// custom colour wheel — the real <input type=color> sits transparently on top,
+// so a finger tap lands directly on it (required for iPad Safari to open the picker)
+const customSw = document.createElement("div");
+customSw.className = "swatch";
+customSw.id = "customSwatch";
+customSw.title = "Custom colour";
+customSw.style.background = "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)";
+customSw.style.position = "relative";
+const customInput = document.createElement("input");
+customInput.type = "color";
+customInput.value = "#ff8800";
+customInput.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;border:none;padding:0;margin:0;cursor:pointer";
+customSw.appendChild(customInput);
+let pickUndoDone = false;
+function applyCustomColour() {
+  penColor = customInput.value;
+  customSw.style.background = customInput.value;
+  document.querySelectorAll(".swatch").forEach(x => x.classList.remove("active"));
+  customSw.classList.add("active");
+  if (selection.length) {
+    if (!pickUndoDone) { pushUndo(); pickUndoDone = true; }
+    selection.forEach(o => { o.color = customInput.value; });
+    requestDraw();
+  }
+}
+customInput.addEventListener("input", applyCustomColour);
+customInput.addEventListener("change", () => {
+  applyCustomColour();
+  pickUndoDone = false;
+  scheduleAutosave();
+});
+swatchesEl.appendChild(customSw);
+
+/* ================= Labels toggle ================= */
+const btnLabels = document.getElementById("btnLabels");
+function refreshLabelsBtn() { btnLabels.classList.toggle("toggled", labelsOn); }
+btnLabels.onclick = () => { labelsOn = !labelsOn; refreshLabelsBtn(); draw(); };
+refreshLabelsBtn();
+
+/* ================= Image / project loading ================= */
+function migrate(obj) {
+  (obj || []).forEach(o => {
+    if (o.kind === "sym" && OLD_TYPE_MAP[o.type]) o.type = OLD_TYPE_MAP[o.type];
+    if (o.kind === "shape" && o.shape === "hatch" && !o.pts && o.x1 != null) {
+      o.pts = [{ x:o.x1, y:o.y1 }, { x:o.x2, y:o.y1 }, { x:o.x2, y:o.y2 }, { x:o.x1, y:o.y2 }];
+      delete o.x1; delete o.y1; delete o.x2; delete o.y2;
+    }
+  });
+  return obj || [];
+}
+
+function setImage(im, dataUrl, keepObjects, keepView) {
+  img = im;
+  imgDataUrl = dataUrl;
+  if (!keepObjects) { objects = []; undoStack = []; redoStack = []; pageBaseH = im.naturalHeight; currentProjId = null; }
+  if (pageBaseH == null) pageBaseH = im.naturalHeight;
+  clearSelection();
+  document.getElementById("dropHint").classList.add("hidden");
+  if (keepView) draw(); else fitView();
+  if (!keepObjects) { levels = [{ name:"Level 1", image:imgDataUrl, pageBaseH:pageBaseH, objects:objects }]; curLevel = 0; }
+  else syncLevel();
+  refreshLevelSel();
+  scheduleAutosave();
+}
+
+function loadImageFile(file) {
+  if (!file || !file.type || file.type.indexOf("image") !== 0) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const im = new Image();
+    im.onload = () => setImage(im, reader.result, false);
+    im.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById("btnPhoto").onclick = () => document.getElementById("fileInput").click();
+let pendingPhoto = null;
+document.getElementById("fileInput").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  if (!img) { loadImageFile(f); return; }
+  pendingPhoto = f;
+  document.getElementById("photoModal").classList.add("show");
+});
+function pendingIsPdf() {
+  return pendingPhoto && (pendingPhoto.type === "application/pdf" || (pendingPhoto.name || "").toLowerCase().endsWith(".pdf"));
+}
+document.getElementById("photoAdd").onclick = () => {
+  document.getElementById("photoModal").classList.remove("show");
+  if (pendingPhoto) { if (pendingIsPdf()) loadPdfFile(pendingPhoto, true); else insertImageObject(pendingPhoto); }
+  pendingPhoto = null;
+};
+document.getElementById("photoReplace").onclick = () => {
+  document.getElementById("photoModal").classList.remove("show");
+  if (pendingPhoto) { if (pendingIsPdf()) loadPdfFile(pendingPhoto); else loadImageFile(pendingPhoto); }
+  pendingPhoto = null;
+};
+document.getElementById("photoCancel").onclick = () => {
+  document.getElementById("photoModal").classList.remove("show");
+  pendingPhoto = null;
+};
+
+stage.addEventListener("dragover", e => e.preventDefault());
+stage.addEventListener("drop", e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) openAnyFile(f);
+});
+
+window.addEventListener("paste", e => {
+  const items = (e.clipboardData || {}).items || [];
+  for (const it of items) {
+    if (it.type.indexOf("image") === 0) { loadImageFile(it.getAsFile()); break; }
+  }
+});
+
+/* ================= PDF import (pdf.js, bundled) ================= */
+let pdfjsReady = null;
+function ensurePdfJs() {
+  if (window.pdfjsLib) return Promise.resolve();
+  if (pdfjsReady) return pdfjsReady;
+  pdfjsReady = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "./pdf.min.js";
+    s.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = "./pdf.worker.min.js";
+      resolve();
+    };
+    s.onerror = () => { pdfjsReady = null; reject(new Error("pdf.js failed to load")); };
+    document.head.appendChild(s);
+  });
+  return pdfjsReady;
+}
+
+function loadPdfFile(file, asObject) {
+  statusEl.textContent = "Opening PDF…";
+  ensurePdfJs()
+    .then(() => file.arrayBuffer())
+    .then(buf => window.pdfjsLib.getDocument({ data: buf }).promise)
+    .then(async pdf => {
+      let n = 1;
+      if (pdf.numPages > 1) {
+        const a = window.prompt("PDF has " + pdf.numPages + " pages. Open which page?", "1");
+        n = Math.min(pdf.numPages, Math.max(1, parseInt(a || "1", 10) || 1));
+      }
+      const page = await pdf.getPage(n);
+      let vp = page.getViewport({ scale: 1 });
+      const scale = Math.min(4, Math.max(1, 2400 / vp.width));
+      vp = page.getViewport({ scale: scale });
+      const c = document.createElement("canvas");
+      c.width = Math.round(vp.width);
+      c.height = Math.round(vp.height);
+      const cx2 = c.getContext("2d");
+      cx2.fillStyle = "#ffffff";
+      cx2.fillRect(0, 0, c.width, c.height);
+      await page.render({ canvasContext: cx2, viewport: vp }).promise;
+      const dataUrl = c.toDataURL("image/jpeg", 0.92);
+      if (asObject && img) {
+        insertImageFromDataUrl(dataUrl, c.width, c.height);
+        updateStatus();
+        return;
+      }
+      const im = new Image();
+      im.onload = () => setImage(im, dataUrl, false);
+      im.src = dataUrl;
+    })
+    .catch(() => {
+      updateStatus();
+      alert("Couldn't open that PDF." + (navigator.onLine ? "" : " PDF import needs internet the first time it's used."));
+    });
+}
+
+function openAnyFile(file) {
+  if (!file) return;
+  const name = (file.name || "").toLowerCase();
+  const isPdf = file.type === "application/pdf" || name.endsWith(".pdf");
+  const isImg = file.type && file.type.indexOf("image") === 0;
+  if ((isPdf || isImg) && img) {
+    pendingPhoto = file;
+    document.getElementById("photoModal").classList.add("show");
+    return;
+  }
+  if (isPdf) loadPdfFile(file);
+  else if (isImg) loadImageFile(file);
+  else loadProjectFile(file);
+}
+
+/* ================= Project save / open ================= */
+function isMobileShare() {
+  const ua = navigator.userAgent;
+  const iOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  return iOS || /Android/.test(ua);
+}
+function canShareFile(file) {
+  return isMobileShare() && navigator.canShare && navigator.canShare({ files: [file] });
+}
+function deliverFile(blob, name, mime) {
+  const file = new File([blob], name, { type: mime });
+  if (canShareFile(file)) {
+    navigator.share({ files: [file], title: name }).catch(() => {});
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+function projectBlob() {
+  syncLevel();
+  const proj = { app:"block-plan-marker", version:7, levels:levels, cur:curLevel, labelsOn:labelsOn, siteNotes:siteNotes, sitePhotos:sitePhotos };
+  return new Blob([JSON.stringify(proj)], { type:"application/json" });
+}
+
+function noteSaved(text) {
+  lastSaveNote = text + " " + new Date().toTimeString().slice(0, 5);
+  updateStatus();
+}
+
+async function saveProject() {
+  if (!img) { alert("Load a block plan first."); return; }
+  const name = "block-plan-project-" + new Date().toISOString().slice(0, 10) + ".json";
+  // PC (Chrome/Edge): true save-in-place
+  if (window.showSaveFilePicker && !isMobileShare()) {
+    try {
+      if (!fileHandle) {
+        fileHandle = await window.showSaveFilePicker({
+          suggestedName: name,
+          types: [{ description: "Block plan project", accept: { "application/json": [".json"] } }]
+        });
+      }
+      const w = await fileHandle.createWritable();
+      await w.write(projectBlob());
+      await w.close();
+      noteSaved("Saved");
+      return;
+    } catch (err) {
+      if (err && err.name === "AbortError") return;   // user cancelled picker
+      fileHandle = null;                              // handle went stale — re-prompt once
+      try {
+        fileHandle = await window.showSaveFilePicker({
+          suggestedName: name,
+          types: [{ description: "Block plan project", accept: { "application/json": [".json"] } }]
+        });
+        const w2 = await fileHandle.createWritable();
+        await w2.write(projectBlob());
+        await w2.close();
+        noteSaved("Saved");
+        return;
+      } catch (err2) {
+        if (err2 && err2.name === "AbortError") return;
+        fileHandle = null;
+      }
+    }
+  }
+  deliverFile(projectBlob(), name, "application/json");
+  noteSaved("Exported");
+}
+document.getElementById("btnSaveProj").onclick = saveProject;
+
+function loadProjectFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const proj = JSON.parse(reader.result);
+      if (proj.app !== "block-plan-marker" || (!proj.image && !proj.levels)) { alert("That doesn't look like a saved project file."); return; }
+      if (!proj.levels) proj.levels = [{ name:"Level 1", image:proj.image, pageBaseH:proj.pageBaseH || null, objects:proj.objects }];
+      proj.levels.forEach(lv => { lv.objects = migrate(lv.objects); });
+      const cur = Math.min(proj.cur || 0, proj.levels.length - 1);
+      const lv = proj.levels[cur];
+      const im = new Image();
+      im.onload = () => {
+        levels = proj.levels; curLevel = cur;
+        objects = lv.objects || [];
+        if (typeof proj.labelsOn === "boolean") { labelsOn = proj.labelsOn; refreshLabelsBtn(); }
+        siteNotes = proj.siteNotes || "";
+        pageBaseH = lv.pageBaseH || null;
+        sitePhotos = proj.sitePhotos || [];
+        undoStack = []; redoStack = [];
+        currentProjId = null;
+        fileHandle = null;
+        setImage(im, lv.image, true);
+      };
+      im.src = lv.image;
+    } catch (err) {
+      alert("Couldn't read that project file.");
+    }
+  };
+  reader.readAsText(file);
+}
+document.getElementById("btnOpenProj").onclick = () => document.getElementById("projInput").click();
+document.getElementById("projInput").addEventListener("change", e => {
+  if (e.target.files && e.target.files[0]) openAnyFile(e.target.files[0]);
+  e.target.value = "";
+});
+
+function insertImageFromDataUrl(src, iw, ih) {
+  const r = stage.getBoundingClientRect();
+  const centre = toImage(r.width / 2, r.height / 2);
+  const w = img.naturalWidth * 0.35;
+  const hh = w * (ih / iw);
+  pushUndo();
+  const o = { kind:"img", src:src, x:centre.x - w / 2, y:centre.y - hh / 2, w:w, h:hh };
+  objects.push(o);
+  setSelection([o]);
+  setTool("select");
+  draw();
+}
+
+function insertImageObject(f) {
+  if (!f || !img) { if (!img) alert("Load a block plan first."); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      const mx = 1400;
+      const sc = Math.min(1, mx / Math.max(im.naturalWidth, im.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.round(im.naturalWidth * sc); c.height = Math.round(im.naturalHeight * sc);
+      c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+      insertImageFromDataUrl(c.toDataURL("image/jpeg", 0.85), c.width, c.height);
+    };
+    im.src = reader.result;
+  };
+  reader.readAsDataURL(f);
+}
+
+document.getElementById("imgObjInput").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  insertImageObject(f);
+});
+
+/* ================= Autosave (IndexedDB) ================= */
+function idb() {
+  return new Promise((resolve, reject) => {
+    const rq = indexedDB.open("bpm", 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore("kv");
+    rq.onsuccess = () => resolve(rq.result);
+    rq.onerror = () => reject(rq.error);
+  });
+}
+async function idbPut(key, val) {
+  const db = await idb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("kv", "readwrite");
+    tx.objectStore("kv").put(val, key);
+    tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbDel(key) {
+  const db = await idb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("kv", "readwrite");
+    tx.objectStore("kv").delete(key);
+    tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbGet(key) {
+  const db = await idb();
+  return new Promise((resolve, reject) => {
+    const rq = db.transaction("kv").objectStore("kv").get(key);
+    rq.onsuccess = () => resolve(rq.result);
+    rq.onerror = () => reject(rq.error);
+  });
+}
+
+function fsAutoKey() {
+  return (typeof fsSiteCtx !== "undefined" && fsSiteCtx && fsSiteCtx.siteId) ? "autosave:" + fsSiteCtx.siteId : "autosave";
+}
+let autosaveTimer = null;
+let autosaveDirty = false;
+function scheduleAutosave() { autosaveDirty = true; }
+async function autosaveNow() {
+  if (!img || !autosaveDirty) return;
+  autosaveDirty = false;
+  try {
+    syncLevel();
+    await idbPut(fsAutoKey(), { levels:levels, cur:curLevel, labelsOn:labelsOn, siteNotes:siteNotes, sitePhotos:sitePhotos, t:Date.now() });
+    if (currentProjId) {
+      await idbPut("proj:" + currentProjId, planSnapshot());
+      const ix = (await idbGet("projIndex")) || [];
+      const en = ix.find(x => x.id === currentProjId);
+      if (en) { en.t = Date.now(); en.thumb = makeThumb(); await idbPut("projIndex", ix); }
+    }
+    noteSaved("Autosaved");
+  } catch (e) { /* storage full or unavailable — ignore */ }
+}
+autosaveTimer = setInterval(autosaveNow, 30000);
+document.addEventListener("visibilitychange", () => { if (document.hidden) autosaveNow(); });
+
+async function tryRestoreAutosave() {
+  try {
+    const a = await idbGet(fsAutoKey());
+    if (!a || (!a.image && !a.levels)) return;
+    if (!a.levels) a.levels = [{ name:"Level 1", image:a.image, pageBaseH:a.pageBaseH || null, objects:a.objects }];
+    a.levels.forEach(lv => { lv.objects = migrate(lv.objects); });
+    const cur = Math.min(a.cur || 0, a.levels.length - 1);
+    const lv = a.levels[cur];
+    const im = new Image();
+    im.onload = () => {
+      levels = a.levels; curLevel = cur;
+      objects = lv.objects || [];
+      if (typeof a.labelsOn === "boolean") { labelsOn = a.labelsOn; refreshLabelsBtn(); }
+      siteNotes = a.siteNotes || "";
+      pageBaseH = lv.pageBaseH || null;
+      sitePhotos = a.sitePhotos || [];
+      setImage(im, lv.image, true);
+      lastSaveNote = "Restored autosave from " + new Date(a.t).toTimeString().slice(0, 5); updateStatus();
+    };
+    im.src = lv.image;
+  } catch (e) { /* no autosave */ }
+}
+
+/* ================= Plans library ================= */
+let currentProjId = null;
+
+function planSnapshot() {
+  syncLevel();
+  return { levels:levels, cur:curLevel, labelsOn:labelsOn, siteNotes:siteNotes, sitePhotos:sitePhotos };
+}
+function makeThumb() {
+  const tw = 220;
+  const c = document.createElement("canvas");
+  const sc = tw / img.naturalWidth;
+  c.width = tw; c.height = Math.round(img.naturalHeight * sc);
+  const cx = c.getContext("2d");
+  cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, c.width, c.height);
+  cx.drawImage(img, 0, 0, c.width, c.height);
+  objects.forEach(o => { try { drawObject(cx, o, sc); } catch (e) {} });
+  return c.toDataURL("image/jpeg", 0.6);
+}
+
+async function renderPlansList() {
+  let ix = (await idbGet("projIndex")) || [];
+  if (typeof fsSiteCtx !== "undefined" && fsSiteCtx) ix = ix.filter(en => !en.siteId || en.siteId === fsSiteCtx.siteId);
+  const wrap = document.getElementById("plansList");
+  if (!ix.length) {
+    wrap.innerHTML = '<p style="font-size:13px;color:#888">No saved plans yet. Load a block plan, then hit "Save current as new plan".</p>';
+    return;
+  }
+  wrap.innerHTML = "";
+  ix.forEach(en => {
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:10px;padding:7px;border:1px solid #3a3f46;border-radius:8px;margin-bottom:7px;cursor:pointer;background:" + (en.id === currentProjId ? "#31413a" : "#1f2328");
+    const im = document.createElement("img");
+    im.src = en.thumb || "";
+    im.style.cssText = "width:64px;height:44px;object-fit:cover;border-radius:4px;background:#fff;flex:0 0 auto";
+    const info = document.createElement("div");
+    info.style.cssText = "flex:1;min-width:0";
+    info.innerHTML = '<div style="font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+      en.name.replace(/&/g, "&amp;").replace(/</g, "&lt;") + '</div>' +
+      '<div style="font-size:11px;color:#888">' + new Date(en.t).toLocaleString() + '</div>';
+    const del = document.createElement("button");
+    del.className = "btn"; del.textContent = "✕"; del.title = "Delete plan";
+    del.onclick = async e => {
+      e.stopPropagation();
+      if (!window.confirm('Delete plan "' + en.name + '" from this device?')) return;
+      const ix2 = ((await idbGet("projIndex")) || []).filter(x => x.id !== en.id);
+      await idbPut("projIndex", ix2);
+      await idbDel("proj:" + en.id);
+      if (currentProjId === en.id) currentProjId = null;
+      renderPlansList();
+    };
+    row.onclick = () => openPlan(en.id);
+    row.appendChild(im); row.appendChild(info); row.appendChild(del);
+    wrap.appendChild(row);
+  });
+}
+
+async function openPlan(id) {
+  const d = await idbGet("proj:" + id);
+  if (!d || (!d.image && !d.levels)) { alert("Couldn't open that plan."); return; }
+  if (!d.levels) d.levels = [{ name:"Level 1", image:d.image, pageBaseH:d.pageBaseH || null, objects:d.objects }];
+  d.levels.forEach(lv => { lv.objects = migrate(lv.objects); });
+  const cur = Math.min(d.cur || 0, d.levels.length - 1);
+  const lv = d.levels[cur];
+  const im = new Image();
+  im.onload = () => {
+    levels = d.levels; curLevel = cur;
+    objects = lv.objects || [];
+    labelsOn = d.labelsOn !== false; refreshLabelsBtn();
+    siteNotes = d.siteNotes || "";
+    pageBaseH = lv.pageBaseH || null;
+    sitePhotos = d.sitePhotos || [];
+    undoStack = []; redoStack = [];
+    fileHandle = null;
+    currentProjId = id;
+    setImage(im, lv.image, true);
+    document.getElementById("plansModal").classList.remove("show");
+    lastSaveNote = "Opened plan"; updateStatus();
+  };
+  im.src = lv.image;
+}
+
+document.getElementById("btnNew").onclick = () => {
+  if (img && !window.confirm("Start a new blank plan? Unsaved work on the current plan will be lost (saved Plans are kept).")) return;
+  img = null; imgDataUrl = null;
+  objects = []; clearSelection();
+  undoStack = []; redoStack = [];
+  siteNotes = ""; pageBaseH = null; sitePhotos = [];
+  levels = []; curLevel = 0; refreshLevelSel();
+  currentProjId = null; fileHandle = null;
+  document.getElementById("dropHint").classList.remove("hidden");
+  idbDel(fsAutoKey()).catch(() => {});
+  lastSaveNote = "";
+  updateStatus();
+  draw();
+};
+
+document.getElementById("btnPlans").onclick = () => {
+  renderPlansList();
+  document.getElementById("plansModal").classList.add("show");
+};
+document.getElementById("plansClose").onclick = () => document.getElementById("plansModal").classList.remove("show");
+document.getElementById("planSaveNew").onclick = async () => {
+  if (!img) { alert("Load a block plan first."); return; }
+  const name = window.prompt("Plan name (e.g. HNEH Ward 3 – Level 2):");
+  if (!name || !name.trim()) return;
+  const id = "p" + Date.now();
+  await idbPut("proj:" + id, planSnapshot());
+  const ix = (await idbGet("projIndex")) || [];
+  ix.unshift({ id:id, name:name.trim(), t:Date.now(), thumb:makeThumb(),
+    siteId:(typeof fsSiteCtx !== "undefined" && fsSiteCtx) ? fsSiteCtx.siteId : null });
+  await idbPut("projIndex", ix);
+  currentProjId = id;
+  renderPlansList();
+  noteSaved("Saved plan");
+};
+
+
+/* ================= Levels ================= */
+function syncLevel() {
+  if (!img) return;
+  if (!levels.length) levels.push({ name:"Level 1" });
+  levels[curLevel] = { name:levels[curLevel] ? levels[curLevel].name : "Level " + (curLevel + 1),
+                       image:imgDataUrl, pageBaseH:pageBaseH, objects:objects };
+}
+function refreshLevelSel() {
+  const sel = document.getElementById("levelSel");
+  if (levels.length < 2) { sel.style.display = "none"; return; }
+  sel.style.display = "inline-block";
+  sel.innerHTML = "";
+  levels.forEach((lv, i) => {
+    const op = document.createElement("option");
+    op.value = i; op.textContent = lv.name;
+    if (i === curLevel) op.selected = true;
+    sel.appendChild(op);
+  });
+}
+function switchLevel(i) {
+  if (i === curLevel && img) { refreshLevelSel(); return; }
+  syncLevel();
+  curLevel = i;
+  const lv = levels[i];
+  const im = new Image();
+  im.onload = () => {
+    objects = lv.objects || [];
+    pageBaseH = lv.pageBaseH || null;
+    img = im; imgDataUrl = lv.image;
+    clearSelection();
+    undoStack = []; redoStack = [];
+    document.getElementById("dropHint").classList.add("hidden");
+    fitView();
+    refreshLevelSel();
+    scheduleAutosave();
+  };
+  im.src = lv.image;
+}
+document.getElementById("levelSel").addEventListener("change", e => switchLevel(+e.target.value));
+
+function renderLevelsList() {
+  const wrap = document.getElementById("levelsList");
+  syncLevel();
+  if (!levels.length) {
+    wrap.innerHTML = '<p style="font-size:13px;color:#888">Load a plan first — it becomes your first level.</p>';
+    return;
+  }
+  wrap.innerHTML = "";
+  levels.forEach((lv, i) => {
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:8px;align-items:center;padding:7px;border:1px solid #3a3f46;border-radius:8px;margin-bottom:7px;background:" + (i === curLevel ? "#31413a" : "#1f2328");
+    const name = document.createElement("input");
+    name.type = "text"; name.value = lv.name;
+    name.style.cssText = "flex:1;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:7px;font-size:14px";
+    name.addEventListener("change", () => { lv.name = name.value.trim() || lv.name; refreshLevelSel(); scheduleAutosave(); });
+    const open = document.createElement("button");
+    open.className = "btn"; open.textContent = i === curLevel ? "Current" : "Open";
+    open.disabled = i === curLevel;
+    open.onclick = () => { switchLevel(i); document.getElementById("levelsModal").classList.remove("show"); };
+    const del = document.createElement("button");
+    del.className = "btn danger"; del.textContent = "✕";
+    del.onclick = () => {
+      if (levels.length === 1) { alert("Can't delete the only level."); return; }
+      if (!window.confirm('Delete level "' + lv.name + '" and everything on it?')) return;
+      const wasCurrent = i === curLevel;
+      levels.splice(i, 1);
+      if (i < curLevel) curLevel -= 1;
+      if (wasCurrent) {
+        const target = Math.min(curLevel, levels.length - 1);
+        curLevel = -1;
+        switchLevel(target);
+      }
+      renderLevelsList();
+      refreshLevelSel();
+      scheduleAutosave();
+    };
+    row.appendChild(name); row.appendChild(open); row.appendChild(del);
+    wrap.appendChild(row);
+  });
+}
+document.getElementById("btnLevels").onclick = () => {
+  renderLevelsList();
+  document.getElementById("levelsModal").classList.add("show");
+};
+document.getElementById("levelsClose").onclick = () => document.getElementById("levelsModal").classList.remove("show");
+document.getElementById("levelAdd").onclick = () => {
+  if (!img) { alert("Load your first plan with Photo or Open — it becomes Level 1."); return; }
+  document.getElementById("levelInput").click();
+};
+
+function addLevelFromDataUrl(name, dataUrl) {
+  syncLevel();
+  levels.push({ name:name, image:dataUrl, pageBaseH:null, objects:[] });
+  curLevel = -1;
+  switchLevel(levels.length - 1);
+  renderLevelsList();
+}
+document.getElementById("levelInput").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  const nm = window.prompt("Level name:", "Level " + (levels.length + 1));
+  if (nm == null) return;
+  const isPdf = f.type === "application/pdf" || (f.name || "").toLowerCase().endsWith(".pdf");
+  if (isPdf) {
+    ensurePdfJs().then(() => f.arrayBuffer())
+      .then(buf => window.pdfjsLib.getDocument({ data: buf }).promise)
+      .then(async pdf => {
+        let n = 1;
+        if (pdf.numPages > 1) {
+          const a = window.prompt("PDF has " + pdf.numPages + " pages. Open which page?", "1");
+          n = Math.min(pdf.numPages, Math.max(1, parseInt(a || "1", 10) || 1));
+        }
+        const page = await pdf.getPage(n);
+        let vp = page.getViewport({ scale: 1 });
+        const scale = Math.min(4, Math.max(1, 2400 / vp.width));
+        vp = page.getViewport({ scale: scale });
+        const c = document.createElement("canvas");
+        c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+        const cx2 = c.getContext("2d");
+        cx2.fillStyle = "#ffffff"; cx2.fillRect(0, 0, c.width, c.height);
+        await page.render({ canvasContext: cx2, viewport: vp }).promise;
+        addLevelFromDataUrl(nm.trim() || "Level", c.toDataURL("image/jpeg", 0.92));
+      })
+      .catch(() => alert("Couldn't open that PDF."));
+  } else {
+    const reader = new FileReader();
+    reader.onload = () => addLevelFromDataUrl(nm.trim() || "Level", reader.result);
+    reader.readAsDataURL(f);
+  }
+});
+
+/* ================= Timer ================= */
+let timerInterval = null, timerEndsAt = null, timerStartedAt = null;
+
+function fmtClock(ms) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  const hh = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
+  return (hh ? hh + ":" : "") + String(mm).padStart(hh ? 2 : 1, "0") + ":" + String(ss).padStart(2, "0");
+}
+function timerTick() {
+  const badge = document.getElementById("timerBadge");
+  let text;
+  if (timerEndsAt) {
+    const left = timerEndsAt - Date.now();
+    if (left <= 0) {
+      timerHalt();
+      try { localStorage.removeItem("bpm-timer"); } catch (e) {}
+      if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+      alert("⏱ Time is up — check the lights!");
+      return;
+    }
+    text = fmtClock(left);
+  } else {
+    text = fmtClock(Date.now() - timerStartedAt);
+  }
+  badge.textContent = "⏱ " + text;
+  const live = document.getElementById("timerLive");
+  if (document.getElementById("timerModal").classList.contains("show")) live.textContent = text;
+}
+function timerBegin(down, minutes) {
+  timerHalt();
+  if (down) {
+    timerEndsAt = Date.now() + minutes * 60000;
+    timerStartedAt = null;
+    try { localStorage.setItem("bpm-timer", String(timerEndsAt)); } catch (e) {}
+  } else {
+    timerStartedAt = Date.now();
+    timerEndsAt = null;
+  }
+  document.getElementById("timerBadge").style.display = "block";
+  document.getElementById("timerStop").style.display = "inline-block";
+  document.getElementById("timerIdle").style.display = "none";
+  timerInterval = setInterval(timerTick, 500);
+  timerTick();
+}
+function timerHalt() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  timerEndsAt = null; timerStartedAt = null;
+  document.getElementById("timerBadge").style.display = "none";
+  document.getElementById("timerStop").style.display = "none";
+  document.getElementById("timerIdle").style.display = "";
+  document.getElementById("timerLive").textContent = "--:--";
+  try { localStorage.removeItem("bpm-timer"); } catch (e) {}
+}
+function openTimer() { document.getElementById("timerModal").classList.add("show"); timerTick0(); }
+function timerTick0() { if (timerInterval) timerTick(); }
+document.getElementById("timerStartDown").onclick = () => {
+  const m = parseFloat(document.getElementById("timerMins").value);
+  if (isNaN(m) || m <= 0) { alert("Enter minutes, e.g. 90"); return; }
+  timerBegin(true, m);
+};
+document.getElementById("timerStartUp").onclick = () => timerBegin(false);
+document.getElementById("timerStop").onclick = () => timerHalt();
+document.getElementById("timerClose").onclick = () => document.getElementById("timerModal").classList.remove("show");
+document.getElementById("timerBadge").onclick = openTimer;
+// resume countdown after reload
+try {
+  const saved = parseInt(localStorage.getItem("bpm-timer"), 10);
+  if (saved && saved > Date.now()) {
+    timerEndsAt = saved;
+    document.getElementById("timerBadge").style.display = "block";
+    document.getElementById("timerStop").style.display = "inline-block";
+    document.getElementById("timerIdle").style.display = "none";
+    timerInterval = setInterval(timerTick, 500);
+  } else if (saved) { localStorage.removeItem("bpm-timer"); }
+} catch (e) {}
+
+/* ================= Details photo viewer / draw ================= */
+let photoViewTarget = null, photoDrawing = false, photoLast = null, photoDirty = false;
+function openPhotoViewer(sym) {
+  photoViewTarget = sym;
+  photoDirty = false;
+  const cvp = document.getElementById("photoViewCanvas");
+  const im = new Image();
+  im.onload = () => {
+    cvp.width = im.naturalWidth; cvp.height = im.naturalHeight;
+    cvp.getContext("2d").drawImage(im, 0, 0);
+    document.getElementById("photoViewModal").classList.add("show");
+  };
+  im.src = sym.photo;
+}
+document.getElementById("photoViewClose").onclick = () => {
+  document.getElementById("photoViewModal").classList.remove("show");
+  photoViewTarget = null;
+};
+document.getElementById("photoViewSave").onclick = () => {
+  if (photoViewTarget && photoDirty) {
+    pushUndo();
+    photoViewTarget.photo = document.getElementById("photoViewCanvas").toDataURL("image/jpeg", 0.85);
+    const ph = document.getElementById("dPhotoPreview");
+    if (ph) ph.src = photoViewTarget.photo;
+    scheduleAutosave();
+  }
+  document.getElementById("photoViewModal").classList.remove("show");
+  photoViewTarget = null;
+};
+(function wirePhotoDraw() {
+  const cvp = document.getElementById("photoViewCanvas");
+  function pos(e) {
+    const r = cvp.getBoundingClientRect();
+    return { x:(e.clientX - r.left) * (cvp.width / r.width), y:(e.clientY - r.top) * (cvp.height / r.height) };
+  }
+  cvp.addEventListener("pointerdown", e => {
+    cvp.setPointerCapture(e.pointerId);
+    photoDrawing = true;
+    photoLast = pos(e);
+  });
+  cvp.addEventListener("pointermove", e => {
+    if (!photoDrawing) return;
+    const p = pos(e);
+    const c = cvp.getContext("2d");
+    c.strokeStyle = penColor; c.lineWidth = Math.max(3, cvp.width * 0.006); c.lineCap = "round";
+    c.beginPath(); c.moveTo(photoLast.x, photoLast.y); c.lineTo(p.x, p.y); c.stroke();
+    photoLast = p;
+    photoDirty = true;
+  });
+  const up = () => { photoDrawing = false; };
+  cvp.addEventListener("pointerup", up);
+  cvp.addEventListener("pointercancel", up);
+})();
+
+/* ================= Copy / paste ================= */
+function copySelection() {
+  if (!selection.length) return;
+  clipboardObjs = selection.map(o => JSON.stringify(o));
+  noteSaved("Copied " + selection.length);
+  updateSelButtons();
+}
+function pasteClipboard() {
+  if (!clipboardObjs.length || !img) return;
+  pushUndo();
+  const clones = clipboardObjs.map(s => JSON.parse(s));
+  // centre of copied content -> current view centre
+  let cx1 = Infinity, cy1 = Infinity, cx2 = -Infinity, cy2 = -Infinity;
+  clones.forEach(o => {
+    const b = objectBounds(o);
+    cx1 = Math.min(cx1, b.x1); cy1 = Math.min(cy1, b.y1);
+    cx2 = Math.max(cx2, b.x2); cy2 = Math.max(cy2, b.y2);
+  });
+  const r = stage.getBoundingClientRect();
+  const vc = toImage(r.width / 2, r.height / 2);
+  const dx = vc.x - (cx1 + cx2) / 2, dy = vc.y - (cy1 + cy2) / 2;
+  const grpMap = {};
+  clones.forEach((o, i) => {
+    if (o.grp) {
+      if (!grpMap[o.grp]) grpMap[o.grp] = "g" + Date.now() + "_" + i;
+      o.grp = grpMap[o.grp];
+    }
+    if (o.kind === "ink") o.points.forEach(pt => { pt.x += dx; pt.y += dy; });
+    else if (o.pts) o.pts.forEach(pt => { pt.x += dx; pt.y += dy; });
+    else if (o.kind === "shape" || o.kind === "callout") {
+      o.x1 += dx; o.y1 += dy; o.x2 += dx; o.y2 += dy;
+      if (o.cx != null) { o.cx += dx; o.cy += dy; }
+    } else { o.x += dx; o.y += dy; }
+  });
+  objects.push(...clones);
+  setSelection(clones);
+  setTool("select");
+  draw();
+}
+document.getElementById("btnCopy").onclick = copySelection;
+document.getElementById("btnPaste").onclick = pasteClipboard;
+
+/* ================= Site photos ================= */
+document.getElementById("cameraInput").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      const mx = 1200;
+      const sc = Math.min(1, mx / Math.max(im.naturalWidth, im.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.round(im.naturalWidth * sc); c.height = Math.round(im.naturalHeight * sc);
+      c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+      sitePhotos.push({ src:c.toDataURL("image/jpeg", 0.8), t:Date.now(), note:"" });
+      scheduleAutosave();
+      openPhotosGallery();
+    };
+    im.src = reader.result;
+  };
+  reader.readAsDataURL(f);
+});
+
+function openPhotosGallery() {
+  const wrap = document.getElementById("photosList");
+  if (!sitePhotos.length) {
+    wrap.innerHTML = '<p style="font-size:13px;color:#888">No site photos yet — use the Camera tool or the button below.</p>';
+  } else {
+    wrap.innerHTML = "";
+    sitePhotos.forEach((ph, i) => {
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:10px;align-items:center;padding:7px;border:1px solid #3a3f46;border-radius:8px;margin-bottom:7px;background:#1f2328";
+      const im = document.createElement("img");
+      im.src = ph.src;
+      im.style.cssText = "width:86px;height:64px;object-fit:cover;border-radius:4px;flex:0 0 auto";
+      const mid = document.createElement("div");
+      mid.style.cssText = "flex:1;min-width:0";
+      const note = document.createElement("input");
+      note.type = "text"; note.value = ph.note || ""; note.placeholder = "note…";
+      note.style.cssText = "width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:6px;font-size:13px";
+      note.addEventListener("change", () => { ph.note = note.value; scheduleAutosave(); });
+      const when = document.createElement("div");
+      when.style.cssText = "font-size:11px;color:#888;margin-top:3px";
+      when.textContent = new Date(ph.t).toLocaleString();
+      mid.appendChild(note); mid.appendChild(when);
+      const share = document.createElement("button");
+      share.className = "btn"; share.textContent = "⬆";
+      share.title = "Save / share this photo";
+      share.onclick = () => {
+        const bin = atob(ph.src.split(",")[1]);
+        const arr = new Uint8Array(bin.length);
+        for (let j = 0; j < bin.length; j++) arr[j] = bin.charCodeAt(j);
+        deliverFile(new Blob([arr], { type:"image/jpeg" }), "site-photo-" + (i + 1) + ".jpg", "image/jpeg");
+      };
+      const del = document.createElement("button");
+      del.className = "btn"; del.textContent = "✕";
+      del.onclick = () => {
+        if (!window.confirm("Delete this photo?")) return;
+        sitePhotos.splice(i, 1);
+        scheduleAutosave();
+        openPhotosGallery();
+      };
+      row.appendChild(im); row.appendChild(mid); row.appendChild(share); row.appendChild(del);
+      wrap.appendChild(row);
+    });
+  }
+  document.getElementById("photosModal").classList.add("show");
+}
+document.getElementById("photosAdd").onclick = () => document.getElementById("cameraInput").click();
+document.getElementById("photosClose").onclick = () => document.getElementById("photosModal").classList.remove("show");
+
+/* ================= Sound meter (Web Audio, indicative) ================= */
+let meterStream = null, meterCtx = null, meterAnalyser = null, meterTimer2 = null;
+let meterMinV = Infinity, meterMaxV = -Infinity, meterLastRaw = null, meterBegan = 0;
+let calOffset = 0;
+try { calOffset = parseFloat(localStorage.getItem("bpm-cal")) || 0; } catch (e) {}
+let meterOnTick = null;
+
+async function meterStart(onTick) {
+  meterStream = await navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false }
+  });
+  meterCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (meterCtx.state === "suspended") await meterCtx.resume();
+  const src = meterCtx.createMediaStreamSource(meterStream);
+  meterAnalyser = meterCtx.createAnalyser();
+  meterAnalyser.fftSize = 2048;
+  src.connect(meterAnalyser);
+  const buf = new Float32Array(meterAnalyser.fftSize);
+  meterMinV = Infinity; meterMaxV = -Infinity; meterBegan = Date.now();
+  meterOnTick = onTick;
+  meterTimer2 = setInterval(() => {
+    meterAnalyser.getFloatTimeDomainData(buf);
+    let sum = 0;
+    for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+    const rms = Math.sqrt(sum / buf.length);
+    const db = rms > 0 ? Math.max(20, Math.min(130, 20 * Math.log10(rms) + 94 + calOffset)) : 20;
+    meterLastRaw = db - calOffset;
+    if (Date.now() - meterBegan > 400) {
+      meterMinV = Math.min(meterMinV, db);
+      meterMaxV = Math.max(meterMaxV, db);
+    }
+    if (meterOnTick) meterOnTick(db, meterMinV, meterMaxV);
+  }, 120);
+}
+function meterStop() {
+  if (meterTimer2) { clearInterval(meterTimer2); meterTimer2 = null; }
+  if (meterStream) { meterStream.getTracks().forEach(tr => tr.stop()); meterStream = null; }
+  if (meterCtx) { meterCtx.close().catch(() => {}); meterCtx = null; }
+  meterOnTick = null;
+}
+function meterRunning() { return !!meterTimer2; }
+const fmtDb = v => (v === Infinity || v === -Infinity || v == null) ? "--" : v.toFixed(1);
+
+function openMeter() {
+  document.getElementById("calNote").textContent = calOffset ? ("Offset applied: " + (calOffset > 0 ? "+" : "") + calOffset.toFixed(1) + " dB") : "No calibration offset set";
+  document.getElementById("meterModal").classList.add("show");
+}
+document.getElementById("meterToggle").onclick = async () => {
+  const btn = document.getElementById("meterToggle");
+  if (meterRunning()) {
+    meterStop();
+    btn.innerHTML = "&#127908; Start";
+    return;
+  }
+  try {
+    btn.textContent = "Stop";
+    await meterStart((db, mn, mx) => {
+      document.getElementById("meterLive").textContent = fmtDb(db);
+      document.getElementById("meterMin").textContent = fmtDb(mn);
+      document.getElementById("meterMax").textContent = fmtDb(mx);
+    });
+  } catch (err) {
+    btn.innerHTML = "&#127908; Start";
+    alert("Couldn't access the microphone. Allow mic access for this app and try again.");
+  }
+};
+document.getElementById("calSet").onclick = () => {
+  const v = parseFloat(document.getElementById("calInput").value);
+  if (isNaN(v) || meterLastRaw == null) { alert("Start the meter first, then enter your real meter's reading."); return; }
+  calOffset = +(v - meterLastRaw).toFixed(1);
+  try { localStorage.setItem("bpm-cal", String(calOffset)); } catch (e) {}
+  document.getElementById("calNote").textContent = "Offset applied: " + (calOffset > 0 ? "+" : "") + calOffset.toFixed(1) + " dB";
+};
+document.getElementById("meterClose").onclick = () => {
+  meterStop();
+  document.getElementById("meterToggle").innerHTML = "&#127908; Start";
+  document.getElementById("meterModal").classList.remove("show");
+};
+
+/* dBA details: measure A (ambient, lowest) / E (evac, highest) */
+let dbaMeasureTarget = null;   // "a" | "e" | null
+function dbaMeasureToggle(which) {
+  const btn = document.getElementById(which === "a" ? "mA" : "mE");
+  if (meterRunning() && dbaMeasureTarget === which) {
+    const val = which === "a" ? meterMinV : meterMaxV;
+    meterStop();
+    dbaMeasureTarget = null;
+    btn.textContent = "Measure";
+    document.getElementById("mLive").textContent = "";
+    if (val !== Infinity && val !== -Infinity) {
+      document.getElementById(which === "a" ? "dVa" : "dVe").value = val.toFixed(1);
+    }
+    return;
+  }
+  if (meterRunning()) return;   // other measurement in progress
+  dbaMeasureTarget = which;
+  btn.textContent = "Stop";
+  meterStart(db => {
+    document.getElementById("mLive").textContent = "🎤 " + fmtDb(db) + " dBA (" +
+      (which === "a" ? "lowest " + fmtDb(meterMinV) : "highest " + fmtDb(meterMaxV)) + ")";
+  }).catch(() => {
+    dbaMeasureTarget = null;
+    btn.textContent = "Measure";
+    alert("Couldn't access the microphone. Allow mic access for this app and try again.");
+  });
+}
+
+/* mark dirty on any undoable change */
+const _origPushUndo = pushUndo;
+pushUndo = function () { _origPushUndo(); scheduleAutosave(); };
+
+/* ================= Pointer interaction ================= */
+const pointers = new Map();
+let dragMode = null;   // pan | pinch | draw | shape | moveSel | marquee | null
+let panStart = null, pinchStart = null;
+let currentStroke = null;
+let shapeStart = null;
+let moveOrig = null;   // array of JSON clones parallel to selection
+let activeHandle = null;
+let pendingDeselect = null;
+let moveStartImg = null;
+let moved = false;
+let downPos = null;
+let lastTap = { t:0, x:0, y:0 };
+
+function localXY(e) {
+  const r = cv.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+const SHAPE_TOOLS = ["line", "arrow", "rect", "ellipse", "cloud", "callout", "hatchd", "hatchx", "hatchs", "hatcho"];
+const HATCH_PATTERN = { hatchd:"diag", hatchx:"cross", hatchs:"solid", hatcho:"dots" };
+
+cv.addEventListener("pointerdown", e => {
+  if (!img) return;
+  cv.setPointerCapture(e.pointerId);
+  const p = localXY(e);
+  pointers.set(e.pointerId, p);
+  moved = false;
+  downPos = p;
+
+  if (pointers.size === 2) {
+    if (dragMode === "draw" && currentStroke) {
+      objects = objects.filter(o => o !== currentStroke);
+      currentStroke = null;
+      if (undoStack.length) undoStack.pop();
+    }
+    tempShape = null; marquee = null;
+    const pts = [...pointers.values()];
+    pinchStart = {
+      dist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y),
+      scale: view.scale,
+      mid: { x:(pts[0].x + pts[1].x) / 2, y:(pts[0].y + pts[1].y) / 2 },
+      viewX: view.x, viewY: view.y
+    };
+    dragMode = "pinch";
+    draw();
+    return;
+  }
+
+  // middle/right mouse button pans from any tool
+  if (e.pointerType === "mouse" && e.button !== 0) {
+    dragMode = "pan";
+    panStart = { x:p.x, y:p.y, viewX:view.x, viewY:view.y };
+    return;
+  }
+
+  const ip = toImage(p.x, p.y);
+
+  if (activeTool === "pan") {
+    dragMode = "pan";
+    panStart = { x:p.x, y:p.y, viewX:view.x, viewY:view.y };
+    return;
+  }
+
+  if (activeTool === "test") {
+    dragMode = "testTapOrPan";
+    panStart = { x:p.x, y:p.y, viewX:view.x, viewY:view.y };
+    return;
+  }
+
+  if (activeTool === "pen" || activeTool === "hl") {
+    pushUndo();
+    currentStroke = {
+      kind:"ink", points:[ip], color:penColor,
+      width: activeTool === "hl" ? Math.max(6, sizeVal() / 3) : Math.max(1.5, sizeVal() / 8),
+      alpha: activeTool === "hl" ? 0.35 : 1
+    };
+    objects.push(currentStroke);
+    clearSelection();
+    dragMode = "draw";
+    return;
+  }
+
+  if (activeTool === "text") {
+    const hitT = hitObject(p.x, p.y);
+    if (hitT) {
+      setSelection([hitT]);
+      pushUndo();
+      dragMode = "moveSel";
+      moveStartImg = ip;
+      moveOrig = selection.map(o => JSON.stringify(o));
+      draw();
+    } else {
+      dragMode = "textTap";
+      panStart = { x:p.x, y:p.y, viewX:view.x, viewY:view.y };
+    }
+    return;
+  }
+
+  if (SHAPE_TOOLS.includes(activeTool)) {
+    if (HATCH_PATTERN[activeTool]) {
+      const hitH = hitObject(p.x, p.y);
+      if (hitH && hitH.kind === "shape" && hitH.shape === "hatch") {
+        setSelection([hitH]);
+        pushUndo();
+        dragMode = "moveSel";
+        moveStartImg = ip;
+        moveOrig = selection.map(o => JSON.stringify(o));
+        draw();
+        return;
+      }
+    }
+    shapeStart = ip;
+    dragMode = "shape";
+    clearSelection();
+    return;
+  }
+
+  if (activeTool === "select") {
+    if (selection.length === 1) {
+      const hs = getHandles(selection[0]);
+      for (const hd of hs) {
+        const hx = hd.x * view.scale + view.x, hy = hd.y * view.scale + view.y;
+        if (Math.hypot(p.x - hx, p.y - hy) <= 14) {
+          pushUndo();
+          dragMode = "handle";
+          activeHandle = hd;
+          return;
+        }
+      }
+    }
+    const hit = hitObject(p.x, p.y);
+    if (hit) {
+      const multi = multiMode || e.shiftKey;
+      const members = hit.grp ? objects.filter(o => o.grp === hit.grp) : [hit];
+      pendingDeselect = null;
+      if (multi) {
+        if (selection.includes(hit)) {
+          pendingDeselect = members;   // tap = remove; drag = move group
+        } else {
+          setSelection([...selection, ...members.filter(m => !selection.includes(m))]);
+        }
+      } else if (!selection.includes(hit)) {
+        setSelection(members);
+      }
+      pushUndo();
+      dragMode = "moveSel";
+      moveStartImg = ip;
+      moveOrig = selection.map(o => JSON.stringify(o));
+      draw();
+    } else {
+      dragMode = "marquee";
+      marquee = { x1:p.x, y1:p.y, x2:p.x, y2:p.y };
+    }
+    return;
+  }
+
+  // symbol placement tool
+  const hit = hitObject(p.x, p.y);
+  if (hit) {
+    setSelection(hit.grp ? objects.filter(o => o.grp === hit.grp) : [hit]);
+    pushUndo();
+    dragMode = "moveSel";
+    moveStartImg = ip;
+    moveOrig = selection.map(o => JSON.stringify(o));
+    draw();
+  } else {
+    dragMode = "placeOrPan";
+    panStart = { x:p.x, y:p.y, viewX:view.x, viewY:view.y };
+  }
+});
+
+cv.addEventListener("pointermove", e => {
+  if (!img || !pointers.has(e.pointerId)) return;
+  const p = localXY(e);
+  pointers.set(e.pointerId, p);
+  if (downPos && Math.hypot(p.x - downPos.x, p.y - downPos.y) > 6) moved = true;
+
+  if (dragMode === "pinch" && pointers.size >= 2 && pinchStart) {
+    const pts = [...pointers.values()];
+    const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    const mid = { x:(pts[0].x + pts[1].x) / 2, y:(pts[0].y + pts[1].y) / 2 };
+    const f = dist / (pinchStart.dist || 1);
+    const newScale = Math.min(20, Math.max(0.05, pinchStart.scale * f));
+    const imgMid = { x:(pinchStart.mid.x - pinchStart.viewX) / pinchStart.scale, y:(pinchStart.mid.y - pinchStart.viewY) / pinchStart.scale };
+    view.scale = newScale;
+    view.x = mid.x - imgMid.x * newScale;
+    view.y = mid.y - imgMid.y * newScale;
+    requestDraw();
+    return;
+  }
+
+  const ip = toImage(p.x, p.y);
+
+  if (dragMode === "handle" && activeHandle) {
+    activeHandle.set(ip.x, ip.y);
+    requestDraw();
+    return;
+  }
+
+  if (dragMode === "draw" && currentStroke) {
+    const last = currentStroke.points[currentStroke.points.length - 1];
+    if (Math.hypot(ip.x - last.x, ip.y - last.y) > 1.5 / view.scale) {
+      currentStroke.points.push(ip);
+      requestDraw();
+    }
+    return;
+  }
+
+  if (dragMode === "shape" && shapeStart) {
+    const base = {
+      color: penColor,
+      width: Math.max(1.5, sizeVal() / 8)
+    };
+    if (activeTool === "callout") {
+      tempShape = { kind:"callout", x1:shapeStart.x, y1:shapeStart.y, x2:ip.x, y2:ip.y, text:"…", size:sizeVal(), color:penColor, width:base.width };
+    } else if (HATCH_PATTERN[activeTool]) {
+      tempShape = { kind:"shape", shape:"hatch", pattern:HATCH_PATTERN[activeTool],
+        pts: [{ x:shapeStart.x, y:shapeStart.y }, { x:ip.x, y:shapeStart.y }, { x:ip.x, y:ip.y }, { x:shapeStart.x, y:ip.y }],
+        color:penColor, width:base.width, alpha:0.4 };
+    } else {
+      tempShape = { kind:"shape", shape:activeTool, x1:shapeStart.x, y1:shapeStart.y, x2:ip.x, y2:ip.y, color:penColor, width:base.width, ls:lineStyle };
+    }
+    requestDraw();
+    return;
+  }
+
+  if (dragMode === "marquee" && marquee) {
+    marquee.x2 = p.x; marquee.y2 = p.y;
+    requestDraw();
+    return;
+  }
+
+  if (dragMode === "moveSel" && moveOrig) {
+    const dx = ip.x - moveStartImg.x, dy = ip.y - moveStartImg.y;
+    selection.forEach((o, i) => {
+      const orig = JSON.parse(moveOrig[i]);
+      if (o.kind === "ink") o.points = orig.points.map(pt => ({ x:pt.x + dx, y:pt.y + dy }));
+      else if (o.pts) o.pts = orig.pts.map(pt => ({ x:pt.x + dx, y:pt.y + dy }));
+      else if (o.kind === "shape" || o.kind === "callout") {
+        o.x1 = orig.x1 + dx; o.y1 = orig.y1 + dy; o.x2 = orig.x2 + dx; o.y2 = orig.y2 + dy;
+        if (orig.cx != null) { o.cx = orig.cx + dx; o.cy = orig.cy + dy; }
+      } else { o.x = orig.x + dx; o.y = orig.y + dy; }
+    });
+    requestDraw();
+    return;
+  }
+
+  if ((dragMode === "placeOrPan" || dragMode === "textTap" || dragMode === "testTapOrPan") && moved) dragMode = "pan";
+
+  if (dragMode === "pan" && panStart) {
+    view.x = panStart.viewX + (p.x - panStart.x);
+    view.y = panStart.viewY + (p.y - panStart.y);
+    requestDraw();
+  }
+});
+
+/* seg_rAF_done */
+function endPointer(e) {
+  if (!pointers.has(e.pointerId)) return;
+  const p = localXY(e);
+  pointers.delete(e.pointerId);
+
+  if (dragMode === "pinch") {
+    if (pointers.size < 2) { dragMode = null; pinchStart = null; }
+    return;
+  }
+
+  const ip = toImage(p.x, p.y);
+
+  if (dragMode === "handle") {
+    activeHandle = null;
+    dragMode = null;
+    scheduleAutosave();
+    updateSelButtons();
+    draw();
+    return;
+  }
+
+  if (dragMode === "draw") {
+    if (currentStroke && currentStroke.points.length < 2) {
+      objects = objects.filter(o => o !== currentStroke);
+      if (undoStack.length) undoStack.pop();
+    } else { scheduleAutosave(); }
+    currentStroke = null;
+    dragMode = null;
+    draw();
+    return;
+  }
+
+  if (dragMode === "shape") {
+    if (tempShape && moved) {
+      if (activeTool === "callout") {
+        openTextCreator({ mode:"callout", shape:tempShape });
+      } else {
+        pushUndo();
+        objects.push(tempShape);
+        setSelection([tempShape]);
+        if (tempShape.shape === "hatch") setTool("select");
+      }
+    }
+    tempShape = null; shapeStart = null; dragMode = null;
+    draw();
+    return;
+  }
+
+  if (dragMode === "marquee") {
+    if (moved && marquee) {
+      const a = toImage(Math.min(marquee.x1, marquee.x2), Math.min(marquee.y1, marquee.y2));
+      const b = toImage(Math.max(marquee.x1, marquee.x2), Math.max(marquee.y1, marquee.y2));
+      let hits = objects.filter(o => {
+        const bb = objectBounds(o);
+        return bb.x1 < b.x && bb.x2 > a.x && bb.y1 < b.y && bb.y2 > a.y;
+      });
+      const gids = new Set(hits.filter(o => o.grp).map(o => o.grp));
+      if (gids.size) hits = objects.filter(o => hits.includes(o) || (o.grp && gids.has(o.grp)));
+      setSelection(hits);
+    } else {
+      clearSelection();
+    }
+    marquee = null; dragMode = null;
+    draw();
+    return;
+  }
+
+  if (dragMode === "moveSel") {
+    if (!moved) {
+      // was a tap on an object, not a drag — undo entry not needed
+      if (undoStack.length) undoStack.pop();
+      if (pendingDeselect) {
+        setSelection(selection.filter(o => !pendingDeselect.includes(o)));
+        pendingDeselect = null;
+        moveOrig = null; dragMode = null;
+        draw();
+        return;
+      }
+      // double-tap on a single selected device opens details
+      const now = Date.now();
+      if (selection.length === 1 &&
+          now - lastTap.t < 380 && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 34) {
+        if (selection[0].kind === "sym") openDetails();
+        else if (selection[0].kind === "text" || selection[0].kind === "callout") openTextEditor(selection[0]);
+      }
+      lastTap = { t: now, x: p.x, y: p.y };
+    } else { scheduleAutosave(); }
+    pendingDeselect = null;
+    moveOrig = null; dragMode = null;
+    draw();
+    return;
+  }
+
+  if (dragMode === "placeOrPan") {
+    if (!moved && TYPE_MAP[activeTool]) {
+      pushUndo();
+      const m = { kind:"sym", type:activeTool, x:ip.x, y:ip.y, size:sizeVal(), rot:0, fx:false, fy:false, zone:"", loop:"", dev:"", info:"" };
+      objects.push(m);
+      setSelection([m]);
+      draw();
+    }
+    dragMode = null; panStart = null;
+    return;
+  }
+
+  if (dragMode === "textTap") {
+    if (!moved) openTextCreator({ mode:"text", x:ip.x, y:ip.y });
+    dragMode = null; panStart = null;
+    return;
+  }
+
+  if (dragMode === "testTapOrPan") {
+    if (!moved) {
+      const hit = hitObject(p.x, p.y);
+      if (hit && hit.kind === "sym") {
+        pushUndo();
+        hit.ty = hit.ty || [];
+        const i = hit.ty.indexOf(testYearSel);
+        if (i >= 0) hit.ty.splice(i, 1); else hit.ty.push(testYearSel);
+        draw();
+      }
+    }
+    dragMode = null; panStart = null;
+    return;
+  }
+  dragMode = null; panStart = null;
+}
+cv.addEventListener("pointerup", endPointer);
+cv.addEventListener("pointercancel", endPointer);
+
+cv.addEventListener("wheel", e => {
+  if (!img) return;
+  e.preventDefault();
+  const p = localXY(e);
+  zoomAt(p.x, p.y, e.deltaY < 0 ? 1.15 : 1 / 1.15);
+}, { passive:false });
+
+cv.addEventListener("contextmenu", e => e.preventDefault());
+
+cv.addEventListener("dblclick", () => {
+  if (selection.length !== 1) return;
+  if (selection[0].kind === "sym") openDetails();
+  else if (selection[0].kind === "text" || selection[0].kind === "callout") openTextEditor(selection[0]);
+});
+
+/* ================= Details popup ================= */
+const detailsModal = document.getElementById("detailsModal");
+let detailsTargets = [];
+let detailsPhoto = undefined;   // undefined = unchanged, null = removed, string = new dataURL
+let failedTouched = false;
+let yearsTouched = {};
+
+function openDetails() {
+  const syms = selection.filter(o => o.kind === "sym");
+  // single text/callout: open the text editor instead
+  if (!syms.length && selection.length === 1 && (selection[0].kind === "text" || selection[0].kind === "callout")) {
+    openTextEditor(selection[0]);
+    return;
+  }
+  if (!syms.length) return;
+  detailsTargets = syms;
+  detailsPhoto = undefined;
+  failedTouched = false;
+  const multi = syms.length > 1;
+  const t = TYPE_MAP[syms[0].type];
+  document.getElementById("detailsTitle").textContent = multi
+    ? syms.length + " devices — filled fields apply to all"
+    : (t ? t.label : "Device") + " details";
+  ["dZone", "dLoop", "dDev", "dInfo", "dVa", "dVe"].forEach(id => {
+    const el = document.getElementById(id);
+    el.value = multi ? "" : (syms[0][{ dZone:"zone", dLoop:"loop", dDev:"dev", dInfo:"info", dVa:"va", dVe:"ve" }[id]] || "");
+    el.placeholder = multi ? "(leave blank to keep)" : "";
+  });
+  document.getElementById("dbaFields").style.display = syms.some(o => o.type === "dba") ? "block" : "none";
+  const fEl = document.getElementById("dFailed");
+  fEl.checked = syms.every(o => o.failed);
+  fEl.indeterminate = multi && syms.some(o => o.failed) && !syms.every(o => o.failed);
+  fEl.onchange = () => { failedTouched = true; };
+  yearsTouched = {};
+  document.querySelectorAll(".dYear").forEach(cb => {
+    const y = +cb.value;
+    const all = syms.every(o => (o.ty || []).includes(y));
+    const some = syms.some(o => (o.ty || []).includes(y));
+    cb.checked = all;
+    cb.indeterminate = multi && some && !all;
+    cb.onchange = () => { yearsTouched[y] = true; };
+  });
+  const ph = document.getElementById("dPhotoPreview");
+  const photo = !multi && syms[0].photo;
+  ph.src = photo || "";
+  ph.style.display = photo ? "block" : "none";
+  ph.style.cursor = "pointer";
+  ph.title = "Tap to open full size";
+  ph.onclick = () => { if (syms[0].photo) openPhotoViewer(syms[0]); };
+  document.getElementById("dPhotoRemove").style.display = photo ? "inline-block" : "none";
+  document.getElementById("photoWrap").style.display = multi ? "none" : "block";
+  detailsModal.classList.add("show");
+}
+document.getElementById("btnDetails").onclick = openDetails;
+document.getElementById("mA").onclick = () => dbaMeasureToggle("a");
+document.getElementById("mE").onclick = () => dbaMeasureToggle("e");
+function stopDbaMeasure() {
+  if (meterRunning() && dbaMeasureTarget) {
+    meterStop();
+    dbaMeasureTarget = null;
+    document.getElementById("mA").textContent = "Measure";
+    document.getElementById("mE").textContent = "Measure";
+    document.getElementById("mLive").textContent = "";
+  }
+}
+document.getElementById("detailsCancel").onclick = () => { stopDbaMeasure(); detailsModal.classList.remove("show"); detailsTargets = []; };
+
+document.getElementById("dPhotoAdd").onclick = () => document.getElementById("dPhotoInput").click();
+document.getElementById("dPhotoInput").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      const mx = 320;
+      const sc = Math.min(1, mx / Math.max(im.naturalWidth, im.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.round(im.naturalWidth * sc); c.height = Math.round(im.naturalHeight * sc);
+      c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+      detailsPhoto = c.toDataURL("image/jpeg", 0.8);
+      const ph = document.getElementById("dPhotoPreview");
+      ph.src = detailsPhoto; ph.style.display = "block";
+      document.getElementById("dPhotoRemove").style.display = "inline-block";
+    };
+    im.src = reader.result;
+  };
+  reader.readAsDataURL(f);
+});
+document.getElementById("dPhotoRemove").onclick = () => {
+  detailsPhoto = null;
+  const ph = document.getElementById("dPhotoPreview");
+  ph.style.display = "none";
+  document.getElementById("dPhotoRemove").style.display = "none";
+};
+
+document.getElementById("detailsSave").onclick = () => {
+  stopDbaMeasure();
+  if (detailsTargets.length) {
+    pushUndo();
+    const multi = detailsTargets.length > 1;
+    const vals = {
+      zone: document.getElementById("dZone").value.trim(),
+      loop: document.getElementById("dLoop").value.trim(),
+      dev:  document.getElementById("dDev").value.trim(),
+      info: document.getElementById("dInfo").value.trim(),
+      va:   document.getElementById("dVa").value.trim(),
+      ve:   document.getElementById("dVe").value.trim()
+    };
+    const failed = document.getElementById("dFailed").checked;
+    detailsTargets.forEach(o => {
+      Object.entries(vals).forEach(([k, v]) => {
+        if (!multi || v !== "") o[k] = v;
+      });
+      if (!multi || failedTouched) o.failed = failed;
+      document.querySelectorAll(".dYear").forEach(cb => {
+        const y = +cb.value;
+        if (multi && !yearsTouched[y]) return;
+        o.ty = o.ty || [];
+        const idx = o.ty.indexOf(y);
+        if (cb.checked && idx < 0) o.ty.push(y);
+        if (!cb.checked && idx >= 0) o.ty.splice(idx, 1);
+      });
+      if (!multi && detailsPhoto !== undefined) {
+        if (detailsPhoto === null) delete o.photo; else o.photo = detailsPhoto;
+      }
+    });
+  }
+  detailsModal.classList.remove("show");
+  detailsTargets = [];
+  draw();
+};
+
+/* ---- text editor (edit + create) ---- */
+const textModal = document.getElementById("textModal");
+let textTarget = null;
+let textCreate = null;   // {mode:"text", x, y} | {mode:"callout", shape}
+const FMT_KEYS = ["bold", "italic", "under", "strike"];
+const fmtBtns = { bold:"tBold", italic:"tItalic", under:"tUnder", strike:"tStrike" };
+let fmtState = { bold:true, italic:false, under:false, strike:false };
+
+FMT_KEYS.forEach(k => {
+  document.getElementById(fmtBtns[k]).onclick = () => {
+    fmtState[k] = !fmtState[k];
+    refreshFmtBtns();
+  };
+});
+function refreshFmtBtns() {
+  FMT_KEYS.forEach(k => document.getElementById(fmtBtns[k]).classList.toggle("toggled", !!fmtState[k]));
+}
+function stickyBg(kind) {
+  try { return localStorage.getItem("bpm-bg-" + kind) === "1"; } catch (e) { return kind === "callout"; }
+}
+function saveStickyBg(kind, val) {
+  try { localStorage.setItem("bpm-bg-" + kind, val ? "1" : "0"); } catch (e) {}
+}
+
+function openTextEditor(o) {
+  textTarget = o; textCreate = null;
+  document.getElementById("textModalTitle").textContent = o.kind === "callout" ? "Callout text" : "Text";
+  document.getElementById("tText").value = o.text || "";
+  document.getElementById("tBg").checked = o.kind === "callout" ? o.bg !== false : !!o.bg;
+  document.getElementById("tFmtRow").style.display = o.kind === "text" ? "flex" : "none";
+  fmtState = { bold:o.bold !== false, italic:!!o.italic, under:!!o.under, strike:!!o.strike };
+  refreshFmtBtns();
+  textModal.classList.add("show");
+  document.getElementById("tText").focus();
+}
+function openTextCreator(create) {
+  textTarget = null; textCreate = create;
+  document.getElementById("textModalTitle").textContent = create.mode === "callout" ? "Callout text" : "New text";
+  document.getElementById("tText").value = "";
+  document.getElementById("tBg").checked = stickyBg(create.mode);
+  document.getElementById("tFmtRow").style.display = create.mode === "text" ? "flex" : "none";
+  fmtState = { bold:true, italic:false, under:false, strike:false };
+  refreshFmtBtns();
+  textModal.classList.add("show");
+  document.getElementById("tText").focus();
+}
+document.getElementById("textCancel").onclick = () => { textModal.classList.remove("show"); textTarget = null; textCreate = null; };
+document.getElementById("textSave").onclick = () => {
+  const v = document.getElementById("tText").value.replace(/\s+$/, "");
+  const bg = document.getElementById("tBg").checked;
+  if (textTarget && v) {
+    pushUndo();
+    textTarget.text = textTarget.kind === "callout" ? v.replace(/\n+/g, " ") : v;
+    textTarget.bg = bg;
+    if (textTarget.kind === "text") FMT_KEYS.forEach(k => { textTarget[k] = fmtState[k]; });
+    saveStickyBg(textTarget.kind, bg);
+  } else if (textCreate && v) {
+    pushUndo();
+    saveStickyBg(textCreate.mode, bg);
+    if (textCreate.mode === "text") {
+      const t = { kind:"text", x:textCreate.x, y:textCreate.y, text:v, size:sizeVal(), color:penColor, bg:bg,
+                  bold:fmtState.bold, italic:fmtState.italic, under:fmtState.under, strike:fmtState.strike };
+      objects.push(t);
+      setSelection([t]);
+    } else {
+      textCreate.shape.text = v.replace(/\n+/g, " ");
+      textCreate.shape.bg = bg;
+      objects.push(textCreate.shape);
+      setSelection([textCreate.shape]);
+    }
+    setTool("select");
+  }
+  textModal.classList.remove("show");
+  textTarget = null; textCreate = null;
+  draw();
+};
+
+/* ---- site notes ---- */
+document.getElementById("btnNotes").onclick = () => {
+  document.getElementById("notesText").value = siteNotes;
+  document.getElementById("notesModal").classList.add("show");
+};
+document.getElementById("notesCancel").onclick = () => document.getElementById("notesModal").classList.remove("show");
+document.getElementById("notesSave").onclick = () => {
+  siteNotes = document.getElementById("notesText").value;
+  scheduleAutosave();
+  document.getElementById("notesModal").classList.remove("show");
+};
+
+/* ---- page space ---- */
+function resizePage(newH) {
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth;
+  c.height = newH;
+  const cx = c.getContext("2d");
+  cx.fillStyle = "#ffffff";
+  cx.fillRect(0, 0, c.width, c.height);
+  cx.drawImage(img, 0, 0);
+  const dataUrl = c.toDataURL("image/jpeg", 0.92);
+  const im = new Image();
+  im.onload = () => setImage(im, dataUrl, true, true);
+  im.src = dataUrl;
+}
+document.getElementById("btnPageSpace").onclick = () => {
+  if (!img) return;
+  resizePage(Math.round(img.naturalHeight * 1.25));
+};
+document.getElementById("btnPageMinus").onclick = () => {
+  if (!img || pageBaseH == null || img.naturalHeight <= pageBaseH) return;
+  resizePage(Math.max(pageBaseH, Math.round(img.naturalHeight / 1.25)));
+};
+
+/* ---- site report ---- */
+function allLevelObjects() {
+  syncLevel();
+  const out = [];
+  if (levels.length) levels.forEach(lv => (lv.objects || []).forEach(o => out.push({ o:o, level:lv.name })));
+  else objects.forEach(o => out.push({ o:o, level:"Level 1" }));
+  return out;
+}
+
+function symRef(o) {
+  const parts = [];
+  if (o.zone) parts.push("Z" + o.zone);
+  if (o.loop) parts.push("L" + o.loop);
+  if (o.dev)  parts.push("D" + o.dev);
+  return parts.join("·");
+}
+
+function reportLines() {
+  const all = allLevelObjects();
+  const multiLevel = levels.length > 1;
+  const lines = [];
+  lines.push(["h", "Site report — " + new Date().toLocaleDateString()]);
+  const lvList = levels.length ? levels : [{ name:"Level 1", objects:objects }];
+  lvList.forEach(lv => {
+    const objs = lv.objects || [];
+    lines.push(["h2", multiLevel ? ("Devices by zone — " + lv.name) : "Devices by zone"]);
+    const zones = zoneCounts(objs);
+    const zoneKeys = Object.keys(zones).sort((a, b) => a.localeCompare(b, undefined, { numeric:true }));
+    if (!zoneKeys.length) lines.push(["t", "No devices"]);
+    zoneKeys.forEach(z => {
+      const parts = Object.entries(zones[z]).map(([ty, n]) => (TYPE_MAP[ty] ? TYPE_MAP[ty].label : ty) + " × " + n);
+      const total = Object.values(zones[z]).reduce((a, b) => a + b, 0);
+      lines.push(["b", "Zone " + z + " (" + total + ")"]);
+      lines.push(["t", parts.join(", ")]);
+    });
+  });
+  const totals = {};
+  let grand = 0;
+  all.forEach(({ o }) => {
+    if (o.kind !== "sym") return;
+    totals[o.type] = (totals[o.type] || 0) + 1;
+    grand++;
+  });
+  lines.push(["h2", multiLevel ? "Totals (all levels)" : "Totals"]);
+  Object.entries(totals).forEach(([ty, n]) => lines.push(["t", (TYPE_MAP[ty] ? TYPE_MAP[ty].label : ty) + " × " + n]));
+  lines.push(["b", "All devices: " + grand]);
+  const failed = all.filter(({ o }) => o.kind === "sym" && o.failed);
+  lines.push(["h2", "Failed items (" + failed.length + ")"]);
+  if (!failed.length) lines.push(["t", "None recorded"]);
+  failed.forEach(({ o, level }) => {
+    const t = TYPE_MAP[o.type];
+    lines.push(["t", "✗ " + (t ? t.label : o.type) + (symRef(o) ? " — " + symRef(o) : "") + (multiLevel ? " — " + level : "") + (o.info ? " — " + o.info : "")]);
+  });
+  const noted = all.filter(({ o }) => o.kind === "sym" && o.info);
+  lines.push(["h2", "Items with notes (" + noted.length + ")"]);
+  if (!noted.length) lines.push(["t", "None recorded"]);
+  noted.forEach(({ o, level }) => {
+    const t = TYPE_MAP[o.type];
+    lines.push(["t", "! " + (t ? t.label : o.type) + (symRef(o) ? " — " + symRef(o) : "") + (multiLevel ? " — " + level : "") + " — " + o.info]);
+  });
+  lines.push(["h2", "Testing"]);
+  [2026, 2027, 2028, 2029].forEach(y => {
+    const n = all.filter(({ o }) => o.kind === "sym" && (o.ty || []).includes(y)).length;
+    if (n) lines.push(["t", "Tested " + y + ": " + n + " devices"]);
+  });
+  const untested = all.filter(({ o }) => o.kind === "sym" && !(o.ty || []).length).length;
+  lines.push(["t", "No test year recorded: " + untested]);
+  if (siteNotes.trim()) {
+    lines.push(["h2", "Site notes"]);
+    siteNotes.split("\n").forEach(l => lines.push(["t", l]));
+  }
+  return lines;
+}
+
+document.getElementById("btnReport").onclick = () => {
+  const lines = reportLines();
+  let html = "";
+  lines.forEach(([k, txt]) => {
+    const esc = txt.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    if (k === "h") html += '<div style="font-size:16px;font-weight:700;color:#ff8a70;margin:4px 0 8px">' + esc + "</div>";
+    else if (k === "h2") html += '<div style="font-size:14px;font-weight:700;margin:12px 0 4px">' + esc + "</div>";
+    else if (k === "b") html += '<div style="font-weight:700;margin:6px 0 1px">' + esc + "</div>";
+    else html += '<div style="color:#ccc;margin:1px 0">' + esc + "</div>";
+  });
+  document.getElementById("reportBody").innerHTML = html;
+  document.getElementById("reportModal").classList.add("show");
+};
+document.getElementById("reportClose").onclick = () => document.getElementById("reportModal").classList.remove("show");
+
+document.getElementById("reportCsv").onclick = () => {
+  const esc = v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  const rows = [["Level", "Type", "Zone", "Loop", "Device", "Other info", "Failed", "Years tested", "A (dBA)", "E (dBA)"]];
+  allLevelObjects().forEach(({ o, level }) => {
+    if (o.kind !== "sym") return;
+    const t = TYPE_MAP[o.type];
+    rows.push([level, t ? t.label : o.type, o.zone || "", o.loop || "", o.dev || "", o.info || "",
+               o.failed ? "YES" : "", (o.ty || []).join(" "), o.va || "", o.ve || ""]);
+  });
+  const csv = rows.map(r => r.map(esc).join(",")).join("\r\n");
+  deliverFile(new Blob(["\ufeff" + csv], { type:"text/csv" }), "device-schedule-" + new Date().toISOString().slice(0, 10) + ".csv", "text/csv");
+};
+
+document.getElementById("reportPdf").onclick = () => {
+  const lines = reportLines();
+  const W = 1240, margin = 90, lineGap = 10;
+  const sizes = { h: 44, h2: 32, b: 26, t: 24 };
+  let y = margin;
+  lines.forEach(([k]) => { y += sizes[k] + lineGap + (k === "h2" ? 18 : 0); });
+  const H = Math.max(y + margin, 600);
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const cx = c.getContext("2d");
+  cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, W, H);
+  y = margin;
+  lines.forEach(([k, txt]) => {
+    if (k === "h2") y += 18;
+    cx.fillStyle = k === "t" ? "#333333" : "#000000";
+    cx.font = (k === "t" ? "" : "bold ") + sizes[k] + "px system-ui, sans-serif";
+    cx.textBaseline = "top";
+    cx.fillText(txt, margin, y);
+    if (k === "h") {
+      cx.fillRect(margin, y + sizes[k] + 6, W - margin * 2, 3);
+    }
+    y += sizes[k] + lineGap;
+  });
+  deliverFile(canvasToPdfBlob(c), "site-report-" + new Date().toISOString().slice(0, 10) + ".pdf", "application/pdf");
+};
+
+/* ================= Zones panel ================= */
+function zoneCounts(objs) {
+  const zones = {};
+  (objs || objects).forEach(o => {
+    if (o.kind !== "sym") return;
+    const z = (o.zone || "").trim() || "(no zone)";
+    zones[z] = zones[z] || {};
+    zones[z][o.type] = (zones[z][o.type] || 0) + 1;
+  });
+  return zones;
+}
+document.getElementById("btnZones").onclick = () => {
+  const zones = zoneCounts();
+  const keys = Object.keys(zones).sort((a, b) => a.localeCompare(b, undefined, { numeric:true }));
+  let html;
+  if (!keys.length) {
+    html = '<p style="font-size:13px;color:#aaa">No devices placed yet.</p>';
+  } else {
+    html = "<table><tr><th>Zone</th><th>Devices</th><th>Total</th></tr>";
+    keys.forEach(z => {
+      const parts = Object.entries(zones[z]).map(([ty, n]) => (TYPE_MAP[ty] ? TYPE_MAP[ty].label : ty) + " × " + n);
+      const total = Object.values(zones[z]).reduce((a, b) => a + b, 0);
+      html += "<tr><td>" + z + "</td><td>" + parts.join(", ") + "</td><td>" + total + "</td></tr>";
+    });
+    html += "</table>";
+  }
+  document.getElementById("zonesTable").innerHTML = html;
+  document.getElementById("zonesModal").classList.add("show");
+};
+document.getElementById("zonesClose").onclick = () => document.getElementById("zonesModal").classList.remove("show");
+
+/* ================= Toolbar ================= */
+document.getElementById("btnFit").onclick = fitView;
+document.getElementById("btnUndo").onclick = undo;
+document.getElementById("btnRedo").onclick = redo;
+
+window.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  const k = e.key.toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && k === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
+  else if ((e.ctrlKey || e.metaKey) && (k === "y" || (k === "z" && e.shiftKey))) { e.preventDefault(); redo(); }
+  else if ((e.ctrlKey || e.metaKey) && k === "d") { e.preventDefault(); btnDup.onclick(); }
+  else if ((e.ctrlKey || e.metaKey) && k === "c") { if (selection.length) { e.preventDefault(); copySelection(); } }
+  else if ((e.ctrlKey || e.metaKey) && k === "v") { if (clipboardObjs.length) { e.preventDefault(); pasteClipboard(); } }
+  else if ((e.ctrlKey || e.metaKey) && k === "s") { e.preventDefault(); saveProject(); }
+  else if (e.key === "Delete" || e.key === "Backspace") { if (selection.length) { e.preventDefault(); btnDel.onclick(); } }
+  else if (e.key === "Escape") { clearSelection(); setTool("pan"); draw(); }
+});
+
+/* ================= Export ================= */
+function renderExportCanvas() {
+  const out = document.createElement("canvas");
+  out.width = img.naturalWidth;
+  out.height = img.naturalHeight;
+  const c = out.getContext("2d");
+  c.fillStyle = "#ffffff";
+  c.fillRect(0, 0, out.width, out.height);
+  c.drawImage(img, 0, 0);
+  objects.forEach(o => drawObject(c, o, 1));
+
+  const used = TYPES.filter(t => objects.some(o => o.kind === "sym" && o.type === t.id));
+  const zones = zoneCounts();
+  const zoneKeys = Object.keys(zones).filter(z => z !== "(no zone)").sort((a, b) => a.localeCompare(b, undefined, { numeric:true }));
+  if (!used.length) return out;
+
+  const lh = Math.max(34, Math.round(out.width * 0.028));
+  const zoneRowH = zoneKeys.length ? Math.round(lh * 0.72) : 0;
+  const extra = lh + 8 + zoneRowH * zoneKeys.length + (zoneKeys.length ? 8 : 0);
+  const strip = document.createElement("canvas");
+  strip.width = out.width; strip.height = out.height + extra;
+  const sc = strip.getContext("2d");
+  sc.fillStyle = "#ffffff"; sc.fillRect(0, 0, strip.width, strip.height);
+  sc.drawImage(out, 0, 0);
+  sc.fillStyle = "#f2f2f2"; sc.fillRect(0, out.height + 4, out.width, extra - 4);
+
+  let x = lh * 0.7;
+  const cy = out.height + 4 + lh / 2;
+  used.forEach(t => {
+    const n = objects.filter(o => o.kind === "sym" && o.type === t.id).length;
+    const iconSize = lh * 0.55;
+    const saveLabels = labelsOn; labelsOn = false;
+    drawObject(sc, { kind:"sym", type:t.id, x:x, y:cy, size:iconSize, rot:0 }, 1);
+    labelsOn = saveLabels;
+    sc.fillStyle = "#222";
+    sc.font = "bold " + Math.round(lh * 0.38) + "px system-ui, sans-serif";
+    sc.textAlign = "left"; sc.textBaseline = "middle";
+    const d = symDims({ type:t.id, size:iconSize, rot:0 });
+    const label = t.label + " × " + n;
+    sc.fillText(label, x + d.w / 2 + lh * 0.2, cy);
+    x += d.w / 2 + lh * 0.2 + sc.measureText(label).width + lh * 0.7;
+  });
+
+  if (activeTool === "test") {
+    const br = lh * 0.26;
+    sc.beginPath(); sc.arc(x + br, cy, br, 0, Math.PI * 2);
+    sc.fillStyle = "#1b8a3f"; sc.fill();
+    sc.strokeStyle = "#ffffff"; sc.lineWidth = br * 0.2; sc.lineCap = "round";
+    sc.beginPath();
+    sc.moveTo(x + br - br * 0.45, cy + br * 0.05);
+    sc.lineTo(x + br - br * 0.1, cy + br * 0.42);
+    sc.lineTo(x + br + br * 0.5, cy - br * 0.35);
+    sc.stroke();
+    sc.fillStyle = "#222";
+    sc.font = "bold " + Math.round(lh * 0.38) + "px system-ui, sans-serif";
+    sc.fillText("= tested " + testYearSel, x + br * 2 + lh * 0.15, cy);
+  }
+
+  zoneKeys.forEach((z, i) => {
+    const zy = out.height + 4 + lh + 8 + zoneRowH * i + zoneRowH / 2;
+    const parts = Object.entries(zones[z]).map(([ty, n]) => (TYPE_MAP[ty] ? TYPE_MAP[ty].label : ty) + " × " + n);
+    const total = Object.values(zones[z]).reduce((a, b) => a + b, 0);
+    sc.fillStyle = "#222";
+    sc.font = "bold " + Math.round(zoneRowH * 0.5) + "px system-ui, sans-serif";
+    sc.textAlign = "left"; sc.textBaseline = "middle";
+    sc.fillText("Zone " + z + " (" + total + "): " + parts.join(", "), lh * 0.7, zy);
+  });
+
+  return strip;
+}
+
+/* ---- minimal single-page PDF wrapping a JPEG ---- */
+function canvasToPdfBlob(canvas) {
+  const jpegB64 = canvas.toDataURL("image/jpeg", 0.92).split(",")[1];
+  const bin = atob(jpegB64);
+  const jpeg = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) jpeg[i] = bin.charCodeAt(i);
+  const W = canvas.width, H = canvas.height;
+  const enc = new TextEncoder();
+  const parts = [];
+  const offsets = [];
+  let pos = 0;
+  function push(x) { const b = typeof x === "string" ? enc.encode(x) : x; parts.push(b); pos += b.length; }
+  function beginObj() { offsets.push(pos); }
+  push("%PDF-1.4\n");
+  beginObj(); push("1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n");
+  beginObj(); push("2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n");
+  beginObj(); push("3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 " + W + " " + H + "] /Resources << /XObject << /Im1 4 0 R >> >> /Contents 5 0 R >> endobj\n");
+  beginObj();
+  push("4 0 obj << /Type /XObject /Subtype /Image /Width " + W + " /Height " + H + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + jpeg.length + " >> stream\n");
+  push(jpeg);
+  push("\nendstream endobj\n");
+  const content = "q " + W + " 0 0 " + H + " 0 0 cm /Im1 Do Q";
+  beginObj(); push("5 0 obj << /Length " + content.length + " >> stream\n" + content + "\nendstream endobj\n");
+  const xrefPos = pos;
+  let xref = "xref\n0 6\n0000000000 65535 f \n";
+  offsets.forEach(o => { xref += String(o).padStart(10, "0") + " 00000 n \n"; });
+  push(xref);
+  push("trailer << /Size 6 /Root 1 0 R >>\nstartxref\n" + xrefPos + "\n%%EOF");
+  return new Blob(parts, { type: "application/pdf" });
+}
+
+const exportPanel = document.getElementById("exportPanel");
+const exportImg = document.getElementById("exportImg");
+let lastExportBlob = null;
+
+function exportName(ext) {
+  return "block-plan-marked-" + new Date().toISOString().slice(0, 10) + "." + ext;
+}
+
+document.getElementById("btnExport").onclick = () => {
+  if (!img) { alert("Load a block plan first."); return; }
+  const out = renderExportCanvas();
+  exportImg.src = out.toDataURL("image/png");
+  lastExportBlob = null;
+  out.toBlob(blob => { lastExportBlob = blob; }, "image/png");
+  exportPanel.classList.add("show");
+};
+document.getElementById("exportPng").onclick = () => {
+  if (!lastExportBlob) return;
+  deliverFile(lastExportBlob, exportName("png"), "image/png");
+};
+document.getElementById("exportPdf").onclick = () => {
+  if (!img) return;
+  const out = renderExportCanvas();
+  deliverFile(canvasToPdfBlob(out), exportName("pdf"), "application/pdf");
+};
+document.getElementById("exportClose").onclick = () => exportPanel.classList.remove("show");
+
+/* ================= Boot ================= */
+resizeCanvas();
+/* FireSpark: workspace restore happens when a site is opened, not at boot */
+</script>
+<script>
+/* ================= FireSpark register layer ================= */
+let fsRegister = null;
+let fsClient = null, fsSite = null;
+let fsDirty = false;
+const FS_CYCLES = [
+  { key:"lastMonthly", label:"Monthly",   months:1 },
+  { key:"last6m",      label:"6 Monthly", months:6 },
+  { key:"lastAnnual",  label:"Annual",    months:12 }
+];
+
+function fsShow(view) {
+  ["fsImportView", "fsClientsView", "fsSitesView", "fsSiteView"].forEach(id =>
+    document.getElementById(id).style.display = id === view ? "block" : "none");
+}
+function fsEsc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+
+function fsEnsureIds() {
+  (fsRegister.clients || []).forEach((c, ci) => {
+    if (!c.id) c.id = "c" + ci;
+    (c.sites || []).forEach((s, si) => { if (!s.id) s.id = c.id + "_s" + si; });
+  });
+}
+function fsStamp() {
+  const el = document.getElementById("fsRegStamp");
+  if (!fsRegister) { el.textContent = ""; return; }
+  el.textContent = "Register: " + (fsRegister.app || "register") +
+    (fsRegister.updated ? " · updated " + fsRegister.updated : "") +
+    (fsRegister.savedBy ? " by " + fsRegister.savedBy : "") +
+    (fsDirty ? " · UNSAVED CHANGES — export when done" : "");
+  document.getElementById("fsExportReg").style.display = fsRegister ? "inline-block" : "none";
+}
+
+function fsCycleStatus(site, cyc) {
+  const t = (site.testing || {})[cyc.key];
+  if (!t) return { cls:"#757575", txt:"no record" };
+  const last = new Date(t);
+  if (isNaN(last)) return { cls:"#757575", txt:"no record" };
+  const due = new Date(last); due.setMonth(due.getMonth() + cyc.months);
+  const days = Math.floor((due - Date.now()) / 86400000);
+  const dueTxt = due.toISOString().slice(0, 10);
+  if (days < 0) return { cls:"#e53935", txt:"OVERDUE (was due " + dueTxt + ")" };
+  if (days <= (cyc.months === 1 ? 7 : 30)) return { cls:"#f2c200", txt:"due " + dueTxt };
+  return { cls:"#1b8a3f", txt:"due " + dueTxt };
+}
+function fsSiteWorstDot(site) {
+  let worst = "#1b8a3f", any = false;
+  FS_CYCLES.forEach(c => {
+    const st = fsCycleStatus(site, c);
+    any = true;
+    if (st.cls === "#e53935") worst = "#e53935";
+    else if (st.cls === "#f2c200" && worst !== "#e53935") worst = "#f2c200";
+    else if (st.cls === "#757575" && worst === "#1b8a3f") worst = "#757575";
+  });
+  return any ? worst : "#757575";
+}
+
+function fsRenderClients() {
+  const q = (document.getElementById("fsSearch").value || "").toLowerCase();
+  const wrap = document.getElementById("fsClientList");
+  wrap.innerHTML = "";
+  (fsRegister.clients || []).forEach(c => {
+    const sites = (c.sites || []).filter(s => !q || (c.name + " " + s.name).toLowerCase().includes(q));
+    if (q && !sites.length && !c.name.toLowerCase().includes(q)) return;
+    const row = document.createElement("div");
+    row.style.cssText = "padding:14px;border:1px solid #3a3f46;border-radius:12px;margin-bottom:9px;background:#23272d;cursor:pointer;display:flex;align-items:center;gap:10px";
+    row.innerHTML = '<div style="flex:1"><div style="font-size:16px;font-weight:700">' + fsEsc(c.name) +
+      '</div><div style="font-size:12px;color:#888">' + (c.sites || []).length + " sites</div></div><div style='color:#666'>&#9654;</div>";
+    row.onclick = () => { fsClient = c; fsRenderSites(); fsShow("fsSitesView"); };
+    wrap.appendChild(row);
+  });
+}
+function fsRenderSites() {
+  document.getElementById("fsClientTitle").textContent = fsClient.name;
+  const wrap = document.getElementById("fsSiteList");
+  wrap.innerHTML = "";
+  (fsClient.sites || []).forEach(s => {
+    const dot = fsSiteWorstDot(s);
+    const row = document.createElement("div");
+    row.style.cssText = "padding:13px;border:1px solid #3a3f46;border-radius:12px;margin-bottom:8px;background:#23272d;cursor:pointer;display:flex;align-items:center;gap:12px";
+    row.innerHTML = '<span style="width:12px;height:12px;border-radius:50%;background:' + dot + ';flex:0 0 auto"></span>' +
+      '<div style="flex:1;font-size:15px;font-weight:600">' + fsEsc(s.name) + '</div><div style="color:#666">&#9654;</div>';
+    row.onclick = () => { fsSite = s; fsRenderSite(); fsShow("fsSiteView"); };
+    wrap.appendChild(row);
+  });
+}
+
+function fsRenderSite() {
+  const s = fsSite;
+  const wrap = document.getElementById("fsSiteDetail");
+  const photo = (s.photos && s.photos.length) ? s.photos[0] : null;
+  let html = '<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px">';
+  html += photo
+    ? '<img src="' + ((photo.src || photo)) + '" style="width:180px;height:130px;object-fit:cover;border-radius:10px;border:1px solid #444">'
+    : '<div style="width:180px;height:130px;border-radius:10px;border:1px dashed #555;display:flex;align-items:center;justify-content:center;color:#666;font-size:12px">No site photo</div>';
+  html += '<div style="flex:1;min-width:220px"><h2 style="font-size:19px;margin-bottom:6px">' + fsEsc(s.name) + '</h2>';
+  if (s.mapUrl) html += '<a href="' + fsEsc(s.mapUrl) + '" target="_blank" style="color:#8ab4ff;font-size:13px">&#128205; Open map</a>';
+  html += '</div></div>';
+
+  html += '<h3 style="font-size:14px;color:#ff8a70;margin:14px 0 6px">Testing status</h3><div id="fsCycles"></div>';
+
+  const fields = s.fields || {};
+  const keys = Object.keys(fields);
+  if (keys.length) {
+    html += '<h3 style="font-size:14px;color:#ff8a70;margin:16px 0 6px">Site details</h3><table style="width:100%;border-collapse:collapse;font-size:13px">';
+    keys.forEach(k => {
+      html += '<tr><td style="border:1px solid #3a3f46;padding:6px 8px;color:#aaa;width:38%">' + fsEsc(k) + '</td><td style="border:1px solid #3a3f46;padding:6px 8px">' + fsEsc(fields[k]) + '</td></tr>';
+    });
+    html += '</table>';
+  }
+  if (s.panelInstructions) html += '<h3 style="font-size:14px;color:#ff8a70;margin:16px 0 6px">Panel instructions</h3><div style="font-size:13px;color:#ccc;white-space:pre-wrap">' + fsEsc(s.panelInstructions) + '</div>';
+  if (s.additionalInfo) html += '<h3 style="font-size:14px;color:#ff8a70;margin:16px 0 6px">Additional info</h3><div style="font-size:13px;color:#ccc;white-space:pre-wrap">' + fsEsc(s.additionalInfo) + '</div>';
+  if (s.photos && s.photos.length > 1) {
+    html += '<h3 style="font-size:14px;color:#ff8a70;margin:16px 0 6px">Photos</h3><div style="display:flex;gap:8px;flex-wrap:wrap">';
+    s.photos.slice(1).forEach(p => {
+      html += '<img src="' + (p.src || p) + '" style="width:110px;height:82px;object-fit:cover;border-radius:8px;border:1px solid #444">';
+    });
+    html += '</div>';
+  }
+  html += '<div style="margin-top:22px"><button class="btn primary" id="fsOpenWs" style="padding:14px 22px;font-size:16px">&#128293; Open Site Workspace</button></div>';
+  wrap.innerHTML = html;
+
+  // testing rows with editable last-done dates
+  const cy = document.getElementById("fsCycles");
+  FS_CYCLES.forEach(c => {
+    const st = fsCycleStatus(s, c);
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #3a3f46;border-radius:8px;margin-bottom:6px;background:#23272d;flex-wrap:wrap";
+    row.innerHTML = '<span style="width:11px;height:11px;border-radius:50%;background:' + st.cls + '"></span>' +
+      '<span style="width:86px;font-size:13px;font-weight:600">' + c.label + '</span>' +
+      '<span style="font-size:12px;color:#aaa">last done</span>';
+    const inp = document.createElement("input");
+    inp.type = "date";
+    inp.value = (s.testing || {})[c.key] || "";
+    inp.style.cssText = "background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:5px";
+    inp.addEventListener("change", () => {
+      s.testing = s.testing || {};
+      s.testing[c.key] = inp.value;
+      fsDirty = true;
+      fsStamp();
+      fsRenderSite();
+    });
+    const status = document.createElement("span");
+    status.style.cssText = "font-size:12px;color:" + st.cls + ";font-weight:600";
+    status.textContent = st.txt;
+    row.appendChild(inp); row.appendChild(status);
+    cy.appendChild(row);
+  });
+
+  document.getElementById("fsOpenWs").onclick = fsEnterWorkspace;
+}
+
+/* ---- register load / save ---- */
+function fsLoadRegister(objIn) {
+  fsRegister = objIn;
+  fsEnsureIds();
+  fsDirty = false;
+  idbPut("fsRegister", fsRegister).catch(() => {});
+  fsStamp();
+  fsRenderClients();
+  fsShow("fsClientsView");
+}
+document.getElementById("fsImportBtn").onclick = () => document.getElementById("fsRegInput").click();
+document.getElementById("fsRegInput").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const d = JSON.parse(reader.result);
+      if (!d.clients) { alert("That file doesn't look like a client register."); return; }
+      fsLoadRegister(d);
+    } catch (err) { alert("Couldn't read that register file."); }
+  };
+  reader.readAsText(f);
+});
+document.getElementById("fsDemoBtn").onclick = () => {
+  fsLoadRegister({
+    app:"demo-register", version:1, updated:new Date().toISOString().slice(0, 10),
+    clients:[{ id:"demo1", name:"Demo Client Group", sites:[
+      { id:"demo1_s0", name:"Demo Facility Alpha", fields:{ "Panel":"Demo FIP-1", "Access":"Front office, ask for FM" },
+        panelInstructions:"Demo only — synthetic data.", testing:{ lastMonthly:"2026-06-15", last6m:"2026-02-10", lastAnnual:"2025-09-01" } },
+      { id:"demo1_s1", name:"Demo Facility Bravo", fields:{ "Panel":"Demo FIP-2" }, testing:{} }
+    ]}]
+  });
+};
+document.getElementById("fsExportReg").onclick = () => {
+  if (!fsRegister) return;
+  let who = "";
+  try { who = localStorage.getItem("fs-user") || ""; } catch (e) {}
+  if (!who) {
+    who = window.prompt("Your name (stamped on saves):", "") || "";
+    try { localStorage.setItem("fs-user", who); } catch (e) {}
+  }
+  fsRegister.updated = new Date().toISOString().slice(0, 10);
+  fsRegister.savedBy = who;
+  fsDirty = false;
+  fsStamp();
+  deliverFile(new Blob([JSON.stringify(fsRegister)], { type:"application/json" }),
+    "wormald-register-" + fsRegister.updated + ".json", "application/json");
+};
+document.getElementById("fsSearch").addEventListener("input", fsRenderClients);
+document.getElementById("fsBackClients").onclick = () => fsShow("fsClientsView");
+document.getElementById("fsBackSites").onclick = () => { fsRenderSites(); fsShow("fsSitesView"); };
+
+/* ---- workspace context ---- */
+let fsSiteCtx = null;
+function fsEnterWorkspace() {
+  fsSiteCtx = { clientId:fsClient.id, siteId:fsSite.id, clientName:fsClient.name, siteName:fsSite.name };
+  document.getElementById("fsReg").style.display = "none";
+  document.getElementById("app").style.display = "flex";
+  document.getElementById("fsSiteName").textContent = fsSite.name;
+  resizeCanvas();
+  tryRestoreAutosave();
+}
+document.getElementById("fsBack").onclick = async () => {
+  await autosaveNow();
+  // reset workspace state so the next site starts clean
+  img = null; imgDataUrl = null; objects = []; clearSelection();
+  undoStack = []; redoStack = []; siteNotes = ""; pageBaseH = null; sitePhotos = [];
+  levels = []; curLevel = 0; refreshLevelSel();
+  currentProjId = null; fileHandle = null;
+  document.getElementById("dropHint").classList.remove("hidden");
+  document.getElementById("app").style.display = "none";
+  document.getElementById("fsReg").style.display = "block";
+  fsRenderSite();
+  fsStamp();
+  updateStatus();
+};
+
+// try restoring a cached register on boot
+(async () => {
+  try {
+    const cached = await idbGet("fsRegister");
+    if (cached && cached.clients) {
+      fsRegister = cached;
+      fsEnsureIds();
+      fsStamp();
+      fsRenderClients();
+      fsShow("fsClientsView");
+    }
+  } catch (e) {}
+})();
+
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("./sw.js");
+}
+</script>
+</body>
+</html>
