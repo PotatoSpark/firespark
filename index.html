@@ -87,48 +87,61 @@
 </style>
 </head>
 <body>
-<div id="fsReg" style="position:fixed;inset:0;background:#1a1d21;z-index:80;overflow-y:auto;display:block">
-  <div style="max-width:760px;margin:0 auto;padding:18px 16px 60px">
+<style>
+  #fsReg { position:fixed; inset:0; background:#eef1f4; color:#17262e; z-index:80; overflow-y:auto; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  #fsReg .wrap { max-width:1060px; margin:0 auto; padding:18px 18px 80px; }
+  .fscard { background:#ffffff; border:1px solid #e2e7ea; border-radius:14px; box-shadow:0 1px 3px rgba(20,40,50,.05); }
+  .fsbtn { border:1px solid #cfd8dc; background:#ffffff; color:#17262e; border-radius:10px; padding:10px 16px; font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; }
+  .fsbtn:active { background:#f0f3f5; }
+  .fsbtnP { border:1px solid #0f5e6b; background:#0f5e6b; color:#fff; border-radius:10px; padding:10px 18px; font-size:14px; font-weight:700; cursor:pointer; touch-action:manipulation; }
+  .fsbtnP:active { background:#0b4954; }
+  .fstab { padding:12px 4px; margin-right:22px; font-size:14.5px; color:#5b6b73; cursor:pointer; border-bottom:3px solid transparent; font-weight:600; white-space:nowrap; }
+  .fstab.on { color:#0f5e6b; border-bottom-color:#0f5e6b; }
+  .fsinput { width:100%; background:#fff; border:1px solid #cfd8dc; border-radius:8px; color:#17262e; padding:9px; font-size:14px; font-family:inherit; }
+  .fslabel { font-size:12px; color:#5b6b73; margin:10px 0 3px; font-weight:600; }
+</style>
+<div id="fsReg">
+  <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
-      <span style="font-size:22px;font-weight:800;color:#ff5a3c">&#128293; FIRESPARK</span>
-      <span style="font-size:11px;color:#888">v0.1 beta</span>
-      <span class="spacer" style="flex:1"></span>
-      <button class="btn" id="fsExportReg" style="display:none">&#128190; Export register</button>
+      <span style="font-size:21px;font-weight:800;color:#c8340f">&#128293; FIRESPARK</span>
+      <span style="font-size:11px;color:#7c8a91">v0.2 beta</span>
+      <span style="flex:1"></span>
+      <button class="fsbtn" id="fsExportReg" style="display:none">&#128190; Export register</button>
     </div>
-    <div id="fsRegStamp" style="font-size:11px;color:#888;margin-bottom:14px"></div>
+    <div id="fsRegStamp" style="font-size:11.5px;color:#7c8a91;margin-bottom:16px"></div>
 
     <div id="fsImportView">
-      <p style="color:#ccc;font-size:14px;margin:26px 0 16px">Load your local client register to begin. The register never leaves this device — the app is an empty shell without it.</p>
-      <div style="display:flex;flex-direction:column;gap:10px;max-width:340px">
-        <button class="btn primary" id="fsImportBtn" style="padding:14px">&#128194; Load register file</button>
-        <button class="btn" id="fsDemoBtn" style="padding:14px">Try with synthetic demo data</button>
+      <div class="fscard" style="max-width:430px;margin:60px auto;padding:26px;text-align:center">
+        <p style="color:#3d4f57;font-size:14.5px;margin-bottom:18px">Load your local client register to begin.<br>The register never leaves this device &mdash; the app is an empty shell without it.</p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="fsbtnP" id="fsImportBtn" style="padding:14px">&#128194; Load register file</button>
+          <button class="fsbtn" id="fsDemoBtn" style="padding:14px">Try with synthetic demo data</button>
+        </div>
       </div>
       <input type="file" id="fsRegInput" style="display:none">
     </div>
 
     <div id="fsClientsView" style="display:none">
-      <input type="text" id="fsSearch" placeholder="Search clients &amp; sites…" style="width:100%;background:#23272d;border:1px solid #444;border-radius:10px;color:#e8e8e8;padding:12px;font-size:15px;margin-bottom:12px">
+      <input type="text" id="fsSearch" class="fsinput" placeholder="Search clients &amp; sites…" style="padding:13px;font-size:15px;margin-bottom:14px">
       <div id="fsClientList"></div>
     </div>
 
     <div id="fsSitesView" style="display:none">
-      <button class="btn" id="fsBackClients" style="margin-bottom:10px">&#9664; Clients</button>
-      <h2 id="fsClientTitle" style="font-size:18px;margin-bottom:10px"></h2>
+      <div style="margin-bottom:12px"><a id="fsBackClients" style="color:#0f5e6b;font-weight:700;cursor:pointer;font-size:15px">&#8592; All clients</a></div>
+      <h2 id="fsClientTitle" style="font-size:20px;margin-bottom:12px"></h2>
       <div id="fsSiteList"></div>
     </div>
 
-    <div id="fsSiteView" style="display:none">
-      <button class="btn" id="fsBackSites" style="margin-bottom:10px">&#9664; Sites</button>
-      <div id="fsSiteDetail"></div>
-    </div>
+    <div id="fsSiteView" style="display:none"></div>
+    <input type="file" id="fsPhotoInput" accept="image/*" style="display:none">
   </div>
 </div>
 
-<div id="app" style="display:none">
+<div id="app"<div id="app" style="display:none">
 
   <div id="topbar">
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.1 beta</span></span>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.2 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans">&#9776; Plans</button>
     <button class="btn" id="btnNew">&#65291; New</button>
@@ -3936,14 +3949,24 @@ resizeCanvas();
 /* FireSpark: workspace restore happens when a site is opened, not at boot */
 </script>
 <script>
-/* ================= FireSpark register layer ================= */
+/* ================= FireSpark register layer v0.2 ================= */
 let fsRegister = null;
 let fsClient = null, fsSite = null;
 let fsDirty = false;
+let fsTab = "overview";
+let fsInfoEdit = false, fsEquipEdit = false;
+let fsPhotoTarget = null;   // {kind:"site"|"equip"|"files", key?}
+
 const FS_CYCLES = [
   { key:"lastMonthly", label:"Monthly",   months:1 },
-  { key:"last6m",      label:"6 Monthly", months:6 },
+  { key:"last6m",      label:"6 monthly", months:6 },
   { key:"lastAnnual",  label:"Annual",    months:12 }
+];
+const FS_EQUIP_FIELDS = [
+  "Panel location", "Panel type", "Panel battery type / size", "EWIS location", "EWIS type",
+  "OWS / speaker notes", "Fire extinguisher locations", "Hose reel locations",
+  "Hydrant / booster location", "Pump room location", "Sprinkler valve room",
+  "Emergency lighting notes", "Gas suppression", "Other equipment"
 ];
 
 function fsShow(view) {
@@ -3958,6 +3981,7 @@ function fsEnsureIds() {
     (c.sites || []).forEach((s, si) => { if (!s.id) s.id = c.id + "_s" + si; });
   });
 }
+function fsMarkDirty() { fsDirty = true; fsStamp(); idbPut("fsRegister", fsRegister).catch(() => {}); }
 function fsStamp() {
   const el = document.getElementById("fsRegStamp");
   if (!fsRegister) { el.textContent = ""; return; }
@@ -3970,26 +3994,25 @@ function fsStamp() {
 
 function fsCycleStatus(site, cyc) {
   const t = (site.testing || {})[cyc.key];
-  if (!t) return { cls:"#757575", txt:"no record" };
+  if (!t) return { col:"#7c8a91", txt:"No record", overdue:false };
   const last = new Date(t);
-  if (isNaN(last)) return { cls:"#757575", txt:"no record" };
+  if (isNaN(last)) return { col:"#7c8a91", txt:"No record", overdue:false };
   const due = new Date(last); due.setMonth(due.getMonth() + cyc.months);
   const days = Math.floor((due - Date.now()) / 86400000);
-  const dueTxt = due.toISOString().slice(0, 10);
-  if (days < 0) return { cls:"#e53935", txt:"OVERDUE (was due " + dueTxt + ")" };
-  if (days <= (cyc.months === 1 ? 7 : 30)) return { cls:"#f2c200", txt:"due " + dueTxt };
-  return { cls:"#1b8a3f", txt:"due " + dueTxt };
+  const nice = due.toLocaleDateString(undefined, { day:"numeric", month:"short" });
+  if (days < 0) return { col:"#c62828", txt:"Overdue (" + nice + ")", overdue:true };
+  if (days <= (cyc.months === 1 ? 7 : 30)) return { col:"#b58900", txt:"Due " + nice, overdue:false };
+  return { col:"#1b8a3f", txt:"Due " + nice, overdue:false };
 }
 function fsSiteWorstDot(site) {
-  let worst = "#1b8a3f", any = false;
+  let worst = "#1b8a3f";
   FS_CYCLES.forEach(c => {
     const st = fsCycleStatus(site, c);
-    any = true;
-    if (st.cls === "#e53935") worst = "#e53935";
-    else if (st.cls === "#f2c200" && worst !== "#e53935") worst = "#f2c200";
-    else if (st.cls === "#757575" && worst === "#1b8a3f") worst = "#757575";
+    if (st.col === "#c62828") worst = "#c62828";
+    else if (st.col === "#b58900" && worst !== "#c62828") worst = "#b58900";
+    else if (st.col === "#7c8a91" && worst === "#1b8a3f") worst = "#7c8a91";
   });
-  return any ? worst : "#757575";
+  return worst;
 }
 
 function fsRenderClients() {
@@ -4000,9 +4023,10 @@ function fsRenderClients() {
     const sites = (c.sites || []).filter(s => !q || (c.name + " " + s.name).toLowerCase().includes(q));
     if (q && !sites.length && !c.name.toLowerCase().includes(q)) return;
     const row = document.createElement("div");
-    row.style.cssText = "padding:14px;border:1px solid #3a3f46;border-radius:12px;margin-bottom:9px;background:#23272d;cursor:pointer;display:flex;align-items:center;gap:10px";
-    row.innerHTML = '<div style="flex:1"><div style="font-size:16px;font-weight:700">' + fsEsc(c.name) +
-      '</div><div style="font-size:12px;color:#888">' + (c.sites || []).length + " sites</div></div><div style='color:#666'>&#9654;</div>";
+    row.className = "fscard";
+    row.style.cssText += ";padding:16px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:12px";
+    row.innerHTML = '<div style="flex:1"><div style="font-size:16.5px;font-weight:700">' + fsEsc(c.name) +
+      '</div><div style="font-size:12.5px;color:#7c8a91">' + (c.sites || []).length + ' sites</div></div><div style="color:#9fb0b7">&#9654;</div>';
     row.onclick = () => { fsClient = c; fsRenderSites(); fsShow("fsSitesView"); };
     wrap.appendChild(row);
   });
@@ -4012,82 +4036,257 @@ function fsRenderSites() {
   const wrap = document.getElementById("fsSiteList");
   wrap.innerHTML = "";
   (fsClient.sites || []).forEach(s => {
-    const dot = fsSiteWorstDot(s);
     const row = document.createElement("div");
-    row.style.cssText = "padding:13px;border:1px solid #3a3f46;border-radius:12px;margin-bottom:8px;background:#23272d;cursor:pointer;display:flex;align-items:center;gap:12px";
-    row.innerHTML = '<span style="width:12px;height:12px;border-radius:50%;background:' + dot + ';flex:0 0 auto"></span>' +
-      '<div style="flex:1;font-size:15px;font-weight:600">' + fsEsc(s.name) + '</div><div style="color:#666">&#9654;</div>';
-    row.onclick = () => { fsSite = s; fsRenderSite(); fsShow("fsSiteView"); };
+    row.className = "fscard";
+    row.style.cssText += ";padding:14px 16px;margin-bottom:9px;cursor:pointer;display:flex;align-items:center;gap:12px";
+    row.innerHTML = '<span style="width:12px;height:12px;border-radius:50%;background:' + fsSiteWorstDot(s) + ';flex:0 0 auto"></span>' +
+      '<div style="flex:1;font-size:15.5px;font-weight:600">' + fsEsc(s.name) + '</div><div style="color:#9fb0b7">&#9654;</div>';
+    row.onclick = () => { fsSite = s; fsTab = "overview"; fsInfoEdit = false; fsEquipEdit = false; fsRenderSite(); fsShow("fsSiteView"); };
     wrap.appendChild(row);
   });
 }
 
+/* ---------- site page ---------- */
 function fsRenderSite() {
   const s = fsSite;
-  const wrap = document.getElementById("fsSiteDetail");
-  const photo = (s.photos && s.photos.length) ? s.photos[0] : null;
-  let html = '<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px">';
-  html += photo
-    ? '<img src="' + ((photo.src || photo)) + '" style="width:180px;height:130px;object-fit:cover;border-radius:10px;border:1px solid #444">'
-    : '<div style="width:180px;height:130px;border-radius:10px;border:1px dashed #555;display:flex;align-items:center;justify-content:center;color:#666;font-size:12px">No site photo</div>';
-  html += '<div style="flex:1;min-width:220px"><h2 style="font-size:19px;margin-bottom:6px">' + fsEsc(s.name) + '</h2>';
-  if (s.mapUrl) html += '<a href="' + fsEsc(s.mapUrl) + '" target="_blank" style="color:#8ab4ff;font-size:13px">&#128205; Open map</a>';
+  s.equipment = s.equipment || {};
+  const wrap = document.getElementById("fsSiteView");
+  const addr = s.address || (s.fields && (s.fields.Address || s.fields.address)) || "";
+
+  let html = '<div style="margin-bottom:14px"><a id="fsBackSites" style="color:#0f5e6b;font-weight:700;cursor:pointer;font-size:15px">&#8592; ' + fsEsc(fsClient.name) + '</a></div>';
+  html += '<div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px">';
+  html += '<div style="flex:1;min-width:250px"><div style="font-size:11px;letter-spacing:2px;color:#0f5e6b;font-weight:800">SITE</div>';
+  html += '<h1 style="font-size:32px;font-weight:700;margin:2px 0 4px">' + fsEsc(s.name) + '</h1>';
+  if (addr) html += '<div style="color:#5b6b73;font-size:15px">' + fsEsc(addr) + '</div>';
+  html += '</div><div style="display:flex;gap:10px;align-items:center;padding-top:22px">';
+  if (s.mapUrl) html += '<button class="fsbtn" id="fsMapBtn">Open in maps</button>';
+  html += '<button class="fsbtnP" id="fsOpenWs">Open Site Workspace &nbsp;&#8594;</button></div></div>';
+
+  // status strip
+  html += '<div class="fscard" style="display:flex;flex-wrap:wrap;margin-bottom:16px">';
+  FS_CYCLES.forEach((c, i) => {
+    const st = fsCycleStatus(s, c);
+    html += '<div style="flex:1;min-width:170px;padding:16px 20px;' + (i ? 'border-left:1px solid #e2e7ea' : '') + '">' +
+      '<div style="font-size:13px;color:#5b6b73">' + c.label + '</div>' +
+      '<div style="font-size:19px;font-weight:800;color:' + st.col + ';margin:3px 0 6px">' + st.txt + '</div>' +
+      '<div style="font-size:11px;color:#7c8a91">last done <input type="date" class="fsCycDate" data-key="' + c.key + '" value="' + fsEsc((s.testing || {})[c.key] || "") + '" style="border:1px solid #cfd8dc;border-radius:6px;padding:3px;font-size:11px"></div></div>';
+  });
+  const openDef = (s.defects || []).filter(d => !d.closed).length;
+  html += '<div style="flex:1;min-width:140px;padding:16px 20px;border-left:1px solid #e2e7ea">' +
+    '<div style="font-size:13px;color:#5b6b73">Open defects</div>' +
+    '<div style="font-size:26px;font-weight:800;margin-top:2px;color:' + (openDef ? '#c62828' : '#17262e') + '">' + openDef + '</div></div>';
+  html += '</div>';
+
+  // info + photo row
+  html += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">';
+  html += '<div class="fscard" style="flex:2;min-width:300px;padding:20px">';
+  html += '<div style="display:flex;align-items:center;margin-bottom:8px"><h3 style="font-size:17px;font-weight:700;flex:1">Site information</h3><a id="fsInfoEditBtn" style="color:#0f5e6b;font-weight:700;cursor:pointer">' + (fsInfoEdit ? 'Save' : 'Edit') + '</a></div>';
+  const infoRows = [["Access requirements", "access"], ["Contacts", "contacts"], ["Further information", "furtherInfo"]];
+  infoRows.forEach(([label, key]) => {
+    if (fsInfoEdit) {
+      html += '<div class="fslabel">' + label + '</div><textarea class="fsinput fsInfoField" data-key="' + key + '" rows="2">' + fsEsc(s[key] || "") + '</textarea>';
+    } else if (s[key]) {
+      html += '<div style="display:flex;border-top:1px solid #eef1f3;padding:11px 0"><div style="width:38%;color:#5b6b73;font-size:13.5px">' + label + '</div><div style="flex:1;font-weight:600;font-size:14px;white-space:pre-wrap">' + fsEsc(s[key]) + '</div></div>';
+    }
+  });
+  if (!fsInfoEdit && !infoRows.some(([l, k]) => s[k])) html += '<div style="color:#9fb0b7;font-size:13px">Nothing recorded yet — tap Edit.</div>';
+  html += '</div>';
+
+  // site photo card
+  html += '<div class="fscard" style="flex:1;min-width:230px;padding:14px;display:flex;flex-direction:column;gap:8px">';
+  html += '<div style="font-size:14px;font-weight:700;color:#5b6b73">Site photo</div>';
+  html += s.photo
+    ? '<img id="fsSitePhoto" src="' + s.photo + '" style="width:100%;height:180px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to replace">'
+    : '<div id="fsSitePhoto" style="width:100%;height:180px;border:2px dashed #cfd8dc;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#9fb0b7;font-size:13px;cursor:pointer">Tap to add site photo</div>';
   html += '</div></div>';
 
-  html += '<h3 style="font-size:14px;color:#ff8a70;margin:14px 0 6px">Testing status</h3><div id="fsCycles"></div>';
+  // tabs
+  const tabs = [["overview", "Overview"], ["equip", "Site Equipment"], ["history", "Test history"], ["defects", "Defects"], ["files", "Files & photos"]];
+  html += '<div class="fscard" style="padding:0 20px"><div style="display:flex;overflow-x:auto">';
+  tabs.forEach(([id, label]) => {
+    html += '<div class="fstab' + (fsTab === id ? ' on' : '') + '" data-tab="' + id + '">' + label + '</div>';
+  });
+  html += '</div></div><div id="fsTabBody" style="margin-top:14px"></div>';
 
-  const fields = s.fields || {};
-  const keys = Object.keys(fields);
-  if (keys.length) {
-    html += '<h3 style="font-size:14px;color:#ff8a70;margin:16px 0 6px">Site details</h3><table style="width:100%;border-collapse:collapse;font-size:13px">';
-    keys.forEach(k => {
-      html += '<tr><td style="border:1px solid #3a3f46;padding:6px 8px;color:#aaa;width:38%">' + fsEsc(k) + '</td><td style="border:1px solid #3a3f46;padding:6px 8px">' + fsEsc(fields[k]) + '</td></tr>';
-    });
-    html += '</table>';
-  }
-  if (s.panelInstructions) html += '<h3 style="font-size:14px;color:#ff8a70;margin:16px 0 6px">Panel instructions</h3><div style="font-size:13px;color:#ccc;white-space:pre-wrap">' + fsEsc(s.panelInstructions) + '</div>';
-  if (s.additionalInfo) html += '<h3 style="font-size:14px;color:#ff8a70;margin:16px 0 6px">Additional info</h3><div style="font-size:13px;color:#ccc;white-space:pre-wrap">' + fsEsc(s.additionalInfo) + '</div>';
-  if (s.photos && s.photos.length > 1) {
-    html += '<h3 style="font-size:14px;color:#ff8a70;margin:16px 0 6px">Photos</h3><div style="display:flex;gap:8px;flex-wrap:wrap">';
-    s.photos.slice(1).forEach(p => {
-      html += '<img src="' + (p.src || p) + '" style="width:110px;height:82px;object-fit:cover;border-radius:8px;border:1px solid #444">';
-    });
-    html += '</div>';
-  }
-  html += '<div style="margin-top:22px"><button class="btn primary" id="fsOpenWs" style="padding:14px 22px;font-size:16px">&#128293; Open Site Workspace</button></div>';
   wrap.innerHTML = html;
 
-  // testing rows with editable last-done dates
-  const cy = document.getElementById("fsCycles");
-  FS_CYCLES.forEach(c => {
-    const st = fsCycleStatus(s, c);
-    const row = document.createElement("div");
-    row.style.cssText = "display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #3a3f46;border-radius:8px;margin-bottom:6px;background:#23272d;flex-wrap:wrap";
-    row.innerHTML = '<span style="width:11px;height:11px;border-radius:50%;background:' + st.cls + '"></span>' +
-      '<span style="width:86px;font-size:13px;font-weight:600">' + c.label + '</span>' +
-      '<span style="font-size:12px;color:#aaa">last done</span>';
-    const inp = document.createElement("input");
-    inp.type = "date";
-    inp.value = (s.testing || {})[c.key] || "";
-    inp.style.cssText = "background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:5px";
+  // wiring
+  document.getElementById("fsBackSites").onclick = () => { fsRenderSites(); fsShow("fsSitesView"); };
+  if (s.mapUrl) document.getElementById("fsMapBtn").onclick = () => window.open(s.mapUrl, "_blank");
+  document.getElementById("fsOpenWs").onclick = fsEnterWorkspace;
+  document.querySelectorAll(".fsCycDate").forEach(inp => {
     inp.addEventListener("change", () => {
       s.testing = s.testing || {};
-      s.testing[c.key] = inp.value;
-      fsDirty = true;
-      fsStamp();
+      s.testing[inp.dataset.key] = inp.value;
+      fsMarkDirty();
       fsRenderSite();
     });
-    const status = document.createElement("span");
-    status.style.cssText = "font-size:12px;color:" + st.cls + ";font-weight:600";
-    status.textContent = st.txt;
-    row.appendChild(inp); row.appendChild(status);
-    cy.appendChild(row);
   });
-
-  document.getElementById("fsOpenWs").onclick = fsEnterWorkspace;
+  document.getElementById("fsInfoEditBtn").onclick = () => {
+    if (fsInfoEdit) {
+      document.querySelectorAll(".fsInfoField").forEach(f => { s[f.dataset.key] = f.value.trim(); });
+      fsMarkDirty();
+    }
+    fsInfoEdit = !fsInfoEdit;
+    fsRenderSite();
+  };
+  document.getElementById("fsSitePhoto").onclick = () => { fsPhotoTarget = { kind:"site" }; document.getElementById("fsPhotoInput").click(); };
+  document.querySelectorAll(".fstab").forEach(t => {
+    t.onclick = () => { fsTab = t.dataset.tab; fsEquipEdit = false; fsRenderSite(); };
+  });
+  fsRenderTab();
 }
 
-/* ---- register load / save ---- */
+function fsRenderTab() {
+  const s = fsSite;
+  const body = document.getElementById("fsTabBody");
+  let html = "";
+
+  if (fsTab === "overview") {
+    const extras = Object.entries(s.fields || {}).filter(([k]) => !/^address$/i.test(k));
+    html += '<div class="fscard" style="padding:20px">';
+    if (s.panelInstructions) html += '<div class="fslabel">Panel instructions</div><div style="font-size:14px;white-space:pre-wrap;margin-bottom:10px">' + fsEsc(s.panelInstructions) + '</div>';
+    if (s.additionalInfo) html += '<div class="fslabel">Additional info</div><div style="font-size:14px;white-space:pre-wrap;margin-bottom:10px">' + fsEsc(s.additionalInfo) + '</div>';
+    if (extras.length) {
+      html += '<div class="fslabel">Register details</div><table style="width:100%;border-collapse:collapse;font-size:13.5px">';
+      extras.forEach(([k, v]) => {
+        html += '<tr><td style="border-top:1px solid #eef1f3;padding:8px 6px;color:#5b6b73;width:38%">' + fsEsc(k) + '</td><td style="border-top:1px solid #eef1f3;padding:8px 6px;font-weight:600">' + fsEsc(v) + '</td></tr>';
+      });
+      html += '</table>';
+    }
+    if (!s.panelInstructions && !s.additionalInfo && !extras.length) html += '<div style="color:#9fb0b7;font-size:13.5px">Nothing further recorded for this site.</div>';
+    html += '</div>';
+  }
+
+  if (fsTab === "equip") {
+    html += '<div class="fscard" style="padding:20px">';
+    html += '<div style="display:flex;align-items:center;margin-bottom:8px"><h3 style="font-size:16px;font-weight:700;flex:1">Site equipment</h3><a id="fsEquipEditBtn" style="color:#0f5e6b;font-weight:700;cursor:pointer">' + (fsEquipEdit ? 'Save' : 'Edit') + '</a></div>';
+    let shown = 0;
+    FS_EQUIP_FIELDS.forEach(k => {
+      const en = s.equipment[k] || {};
+      if (fsEquipEdit) {
+        html += '<div class="fslabel">' + k + '</div><div style="display:flex;gap:8px;align-items:flex-start">' +
+          '<textarea class="fsinput fsEquipField" data-key="' + fsEsc(k) + '" rows="1" style="flex:1">' + fsEsc(en.v || "") + '</textarea>' +
+          '<button class="fsbtn fsEquipPhoto" data-key="' + fsEsc(k) + '" style="padding:8px 10px">&#128247;</button>' +
+          (en.photo ? '<button class="fsbtn fsEquipPhotoDel" data-key="' + fsEsc(k) + '" style="padding:8px 10px;color:#c62828">&#128465;</button>' : '') +
+          '</div>' + (en.photo ? '<img src="' + en.photo + '" style="max-width:150px;max-height:100px;border-radius:8px;margin-top:6px">' : '');
+      } else if (en.v || en.photo) {
+        shown++;
+        html += '<div style="display:flex;border-top:1px solid #eef1f3;padding:11px 0;gap:10px"><div style="width:38%;color:#5b6b73;font-size:13.5px">' + k + '</div>' +
+          '<div style="flex:1"><div style="font-weight:600;font-size:14px;white-space:pre-wrap">' + fsEsc(en.v || "") + '</div>' +
+          (en.photo ? '<img src="' + en.photo + '" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px">' : '') + '</div></div>';
+      }
+    });
+    if (!fsEquipEdit && !shown) html += '<div style="color:#9fb0b7;font-size:13.5px">No equipment recorded — tap Edit to add panel, extinguisher, battery details and photos. Empty fields stay hidden.</div>';
+    html += '</div>';
+  }
+
+  if (fsTab === "history") {
+    html += '<div class="fscard" style="padding:20px;color:#5b6b73;font-size:14px">Recorded tests will appear here once test mode lands (next build). Each completed Monthly / 6 monthly / Annual will be listed with date, technician and results, with export.</div>';
+  }
+  if (fsTab === "defects") {
+    const defs = (s.defects || []);
+    html += '<div class="fscard" style="padding:20px;color:#5b6b73;font-size:14px">' +
+      (defs.length ? '' : 'No defects recorded. Failed items from test mode will carry forward here until rectified (next build).') + '</div>';
+  }
+  if (fsTab === "files") {
+    html += '<div class="fscard" style="padding:20px">';
+    html += '<div style="display:flex;align-items:center;margin-bottom:10px"><h3 style="font-size:16px;font-weight:700;flex:1">Files &amp; photos</h3><button class="fsbtn" id="fsFilesAdd">&#128247; Add photo</button></div>';
+    const ph = s.photos || [];
+    if (!ph.length) html += '<div style="color:#9fb0b7;font-size:13.5px">No photos yet.</div>';
+    else {
+      html += '<div style="display:flex;gap:10px;flex-wrap:wrap">';
+      ph.forEach((p, i) => {
+        html += '<div style="position:relative"><img src="' + (p.src || p) + '" style="width:150px;height:110px;object-fit:cover;border-radius:10px">' +
+          '<button class="fsbtn fsFileDel" data-i="' + i + '" style="position:absolute;top:4px;right:4px;padding:2px 8px;color:#c62828">&#10005;</button></div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  body.innerHTML = html;
+
+  if (fsTab === "equip") {
+    document.getElementById("fsEquipEditBtn").onclick = () => {
+      if (fsEquipEdit) {
+        document.querySelectorAll(".fsEquipField").forEach(f => {
+          const k = f.dataset.key;
+          fsSite.equipment[k] = fsSite.equipment[k] || {};
+          fsSite.equipment[k].v = f.value.trim();
+        });
+        fsMarkDirty();
+      }
+      fsEquipEdit = !fsEquipEdit;
+      fsRenderTab();
+      document.getElementById("fsEquipEditBtn").onclick && 0;
+      fsRenderSite();
+    };
+    document.querySelectorAll(".fsEquipPhoto").forEach(b => {
+      b.onclick = () => { fsSaveEquipDraft(); fsPhotoTarget = { kind:"equip", key:b.dataset.key }; document.getElementById("fsPhotoInput").click(); };
+    });
+    document.querySelectorAll(".fsEquipPhotoDel").forEach(b => {
+      b.onclick = () => {
+        fsSaveEquipDraft();
+        delete fsSite.equipment[b.dataset.key].photo;
+        fsMarkDirty();
+        fsRenderTab();
+      };
+    });
+  }
+  if (fsTab === "files") {
+    document.getElementById("fsFilesAdd").onclick = () => { fsPhotoTarget = { kind:"files" }; document.getElementById("fsPhotoInput").click(); };
+    document.querySelectorAll(".fsFileDel").forEach(b => {
+      b.onclick = () => {
+        if (!window.confirm("Delete this photo?")) return;
+        fsSite.photos.splice(+b.dataset.i, 1);
+        fsMarkDirty();
+        fsRenderTab();
+      };
+    });
+  }
+}
+function fsSaveEquipDraft() {
+  document.querySelectorAll(".fsEquipField").forEach(f => {
+    const k = f.dataset.key;
+    fsSite.equipment[k] = fsSite.equipment[k] || {};
+    fsSite.equipment[k].v = f.value.trim();
+  });
+}
+
+/* shared photo intake (downscaled) */
+document.getElementById("fsPhotoInput").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!f || !fsPhotoTarget) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      const mx = 900;
+      const sc = Math.min(1, mx / Math.max(im.naturalWidth, im.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.round(im.naturalWidth * sc); c.height = Math.round(im.naturalHeight * sc);
+      c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+      const src = c.toDataURL("image/jpeg", 0.8);
+      if (fsPhotoTarget.kind === "site") fsSite.photo = src;
+      else if (fsPhotoTarget.kind === "equip") {
+        fsSite.equipment[fsPhotoTarget.key] = fsSite.equipment[fsPhotoTarget.key] || {};
+        fsSite.equipment[fsPhotoTarget.key].photo = src;
+      } else if (fsPhotoTarget.kind === "files") {
+        fsSite.photos = fsSite.photos || [];
+        fsSite.photos.push({ src:src, t:Date.now() });
+      }
+      fsPhotoTarget = null;
+      fsMarkDirty();
+      fsRenderSite();
+    };
+    im.src = reader.result;
+  };
+  reader.readAsDataURL(f);
+});
+
+/* ---------- register load / save ---------- */
 function fsLoadRegister(objIn) {
   fsRegister = objIn;
   fsEnsureIds();
@@ -4116,9 +4315,11 @@ document.getElementById("fsDemoBtn").onclick = () => {
   fsLoadRegister({
     app:"demo-register", version:1, updated:new Date().toISOString().slice(0, 10),
     clients:[{ id:"demo1", name:"Demo Client Group", sites:[
-      { id:"demo1_s0", name:"Demo Facility Alpha", fields:{ "Panel":"Demo FIP-1", "Access":"Front office, ask for FM" },
-        panelInstructions:"Demo only — synthetic data.", testing:{ lastMonthly:"2026-06-15", last6m:"2026-02-10", lastAnnual:"2025-09-01" } },
-      { id:"demo1_s1", name:"Demo Facility Bravo", fields:{ "Panel":"Demo FIP-2" }, testing:{} }
+      { id:"demo1_s0", name:"Demo Facility Alpha", address:"100 Example Road, Sampletown NSW",
+        access:"Sign in at reception. Induction card required.", contacts:"Demo contact · 0400 000 000",
+        equipment:{ "Panel location":{ v:"Demonstration panel — Level 1 reception" } },
+        testing:{ lastMonthly:"2026-06-15", last6m:"2026-02-10", lastAnnual:"2025-09-01" } },
+      { id:"demo1_s1", name:"Demo Facility Bravo", testing:{} }
     ]}]
   });
 };
@@ -4139,9 +4340,8 @@ document.getElementById("fsExportReg").onclick = () => {
 };
 document.getElementById("fsSearch").addEventListener("input", fsRenderClients);
 document.getElementById("fsBackClients").onclick = () => fsShow("fsClientsView");
-document.getElementById("fsBackSites").onclick = () => { fsRenderSites(); fsShow("fsSitesView"); };
 
-/* ---- workspace context ---- */
+/* ---------- workspace context ---------- */
 let fsSiteCtx = null;
 function fsEnterWorkspace() {
   fsSiteCtx = { clientId:fsClient.id, siteId:fsSite.id, clientName:fsClient.name, siteName:fsSite.name };
@@ -4153,7 +4353,6 @@ function fsEnterWorkspace() {
 }
 document.getElementById("fsBack").onclick = async () => {
   await autosaveNow();
-  // reset workspace state so the next site starts clean
   img = null; imgDataUrl = null; objects = []; clearSelection();
   undoStack = []; redoStack = []; siteNotes = ""; pageBaseH = null; sitePhotos = [];
   levels = []; curLevel = 0; refreshLevelSel();
@@ -4166,7 +4365,6 @@ document.getElementById("fsBack").onclick = async () => {
   updateStatus();
 };
 
-// try restoring a cached register on boot
 (async () => {
   try {
     const cached = await idbGet("fsRegister");
