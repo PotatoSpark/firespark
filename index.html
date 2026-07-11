@@ -129,7 +129,7 @@
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
       <span style="font-size:21px;font-weight:800;color:#c8340f;display:inline-flex;align-items:center;gap:8px"><img src="icon-192.png" style="width:26px;height:26px;border-radius:6px" alt=""> FIRESPARK</span>
-      <span style="font-size:11px;color:#7c8a91">v0.6 beta</span>
+      <span style="font-size:11px;color:#7c8a91">v0.7 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsThemeBtn" title="Light / dark">&#127765;</button>
       <button class="fsbtn" id="fsExportReg" style="display:none">&#128190; Export register</button>
@@ -167,7 +167,8 @@
 
   <div id="topbar">
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.6 beta</span></span>
+    <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.7 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -395,6 +396,12 @@
   </div>
 </div>
 
+<div class="modal" id="fsTestModal">
+  <div class="modalbox" style="max-width:600px;width:94vw;max-height:84vh;overflow-y:auto;text-align:left">
+    <div id="fsTestBody"></div>
+  </div>
+</div>
+<input type="file" id="fsCkInput" accept=".json,application/json" style="display:none">
 <div id="testCounter"></div>
 <div id="timerBadge" title="Drag to move &middot; tap to open" style="display:none;position:fixed;right:14px;bottom:64px;z-index:45;background:rgba(20,30,20,.92);border:1px solid #2e7d32;border-radius:9px;padding:5px 10px;color:#4caf50;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums;cursor:grab;touch-action:none;user-select:none"></div>
 
@@ -4413,12 +4420,46 @@ function fsRenderTab() {
   }
 
   if (fsTab === "history") {
-    html += '<div class="fscard" style="padding:20px;color:var(--fs-sub);font-size:14px">Recorded tests will appear here once test mode lands (next build). Each completed Monthly / 6 monthly / Annual will be listed with date, technician and results, with export.</div>';
+    const hist = s.history || [];
+    html += '<div class="fscard" style="padding:20px">';
+    html += '<h3 style="font-size:16px;font-weight:700;margin-bottom:8px">Test history</h3>';
+    if (!hist.length) html += '<div style="color:var(--fs-faint);font-size:13.5px">No tests recorded yet. Open the Site Workspace and tap <b>&#9654; Start test</b>.</div>';
+    hist.forEach(r => {
+      const failBits = (r.checklist && r.checklist.f ? r.checklist.f : 0) + ((r.failedDevices || []).length);
+      html += '<details style="border-top:1px solid var(--fs-border);padding:9px 0">';
+      html += '<summary style="cursor:pointer;font-weight:700;font-size:14.5px">' + fsEsc(r.label || r.mode) + ' &mdash; ' + fsEsc((r.finished || "").slice(0, 10)) + (r.tech ? ' &middot; ' + fsEsc(r.tech) : '') +
+        (failBits ? ' &middot; <span style="color:#c62828">' + failBits + ' fail' + (failBits > 1 ? 's' : '') + '</span>' : ' &middot; <span style="color:#1b8a3f">no fails</span>') + '</summary>';
+      html += '<div style="font-size:13px;padding:6px 2px;color:var(--fs-sub)">';
+      if (r.checklist) html += 'Checklist: <b style="color:#1b8a3f">' + r.checklist.p + ' P</b> &middot; <b style="color:#c62828">' + r.checklist.f + ' F</b> &middot; ' + r.checklist.na + ' N/A' + (r.checklist.total ? ' (of ' + r.checklist.total + ')' : '') + '<br>';
+      if (r.devices && r.devices.total) html += 'Devices tested: <b>' + r.devices.tested + ' / ' + r.devices.total + '</b> (' + fsEsc(String(r.year || "")) + ')<br>';
+      (r.failsChecklist || []).forEach(x => { html += '<span style="color:#c62828">&#10007; ' + fsEsc(x.k) + '</span> ' + fsEsc(x.t.slice(0, 90)) + (x.note ? ' — <i>' + fsEsc(x.note) + '</i>' : '') + '<br>'; });
+      (r.failedDevices || []).forEach(d => { html += '<span style="color:#c62828">&#10007; device</span> ' + fsEsc(d.type + (d.zone ? ' Z' + d.zone : '') + (d.dev ? ' D' + d.dev : '') + (d.info ? ' — ' + d.info : '')) + '<br>'; });
+      if (r.obs) html += 'Obs: ' + fsEsc(r.obs) + '<br>';
+      html += '<span style="color:var(--fs-faint)">' + fsEsc(r.ref || '') + ' &middot; started ' + fsEsc((r.started || '').slice(0, 16).replace('T', ' ')) + '</span>';
+      html += '</div></details>';
+    });
+    html += '</div>';
   }
   if (fsTab === "defects") {
     const defs = (s.defects || []);
-    html += '<div class="fscard" style="padding:20px;color:var(--fs-sub);font-size:14px">' +
-      (defs.length ? '' : 'No defects recorded. Failed items from test mode will carry forward here until rectified (next build).') + '</div>';
+    const open = defs.filter(d => !d.closed), closed = defs.filter(d => d.closed);
+    html += '<div class="fscard" style="padding:20px">';
+    html += '<h3 style="font-size:16px;font-weight:700;margin-bottom:8px">Defects <span style="color:' + (open.length ? '#c62828' : 'var(--fs-sub2)') + ';font-size:13px">(' + open.length + ' open)</span></h3>';
+    if (!defs.length) html += '<div style="color:var(--fs-faint);font-size:13.5px">No defects recorded. Failed checklist items and failed devices from tests carry forward here until rectified.</div>';
+    open.forEach(d => {
+      html += '<div style="border-top:1px solid var(--fs-border);padding:10px 0;display:flex;gap:10px;align-items:flex-start">' +
+        '<div style="flex:1"><div style="font-size:14px;font-weight:600">' + fsEsc(d.desc) + '</div>' +
+        '<div style="font-size:12px;color:var(--fs-sub2)">' + fsEsc((d.created || "").slice(0, 10)) + ' &middot; ' + fsEsc(d.source || "") + '</div></div>' +
+        '<button class="fsbtn fsDefFix" data-id="' + fsEsc(d.id) + '" style="color:#1b8a3f;font-weight:700">&#10003; Rectified</button></div>';
+    });
+    if (closed.length) {
+      html += '<details style="margin-top:10px"><summary style="cursor:pointer;color:var(--fs-sub);font-size:13.5px">' + closed.length + ' rectified</summary>';
+      closed.forEach(d => {
+        html += '<div style="border-top:1px solid var(--fs-border);padding:8px 0;font-size:13px;color:var(--fs-sub)"><s>' + fsEsc(d.desc) + '</s><div style="font-size:12px;color:var(--fs-faint)">rectified ' + fsEsc((d.closed || "").slice(0, 10)) + '</div></div>';
+      });
+      html += '</details>';
+    }
+    html += '</div>';
   }
   if (fsTab === "files") {
     html += '<div class="fscard" style="padding:20px">';
@@ -4448,6 +4489,17 @@ function fsRenderTab() {
       fsRenderTab();
     };
     document.getElementById("fsSitePhoto").onclick = () => { fsPhotoTarget = { kind:"site" }; document.getElementById("fsPhotoInput").click(); };
+  }
+
+  if (fsTab === "defects") {
+    document.querySelectorAll(".fsDefFix").forEach(b => b.onclick = () => {
+      const d = (s.defects || []).find(x => x.id === b.dataset.id);
+      if (!d) return;
+      if (!confirm("Mark as rectified?\n\n" + d.desc)) return;
+      d.closed = new Date().toISOString();
+      fsMarkDirty();
+      fsRenderSite();
+    });
   }
 
   if (fsTab === "equip") {
@@ -4579,7 +4631,7 @@ document.getElementById("fsExportReg").onclick = () => {
   fsDirty = false;
   fsStamp();
   deliverFile(new Blob([JSON.stringify(fsRegister)], { type:"application/json" }),
-    "wormald-register-" + fsRegister.updated + ".json", "application/json");
+    "firespark-register-" + fsRegister.updated + ".json", "application/json");
 };
 document.getElementById("fsThemeBtn").onclick = () => {
   const reg = document.getElementById("fsReg");
@@ -4600,6 +4652,7 @@ function fsEnterWorkspace() {
   document.getElementById("fsReg").style.display = "none";
   document.getElementById("app").style.display = "flex";
   document.getElementById("fsSiteName").textContent = fsSite.name;
+  fsLoadChecklists().then(fsRestoreSession);
   resizeCanvas();
   tryRestoreAutosave();
 }
@@ -4616,6 +4669,259 @@ document.getElementById("fsBack").onclick = async () => {
   fsStamp();
   updateStatus();
 };
+
+/* ---------- Pass 2A: test sessions, checklists, history, defects ---------- */
+const FS_GENERIC_CHECKLISTS = {
+  app:"firespark-checklists", version:0,
+  modes:{
+    monthly:{ label:"Monthly", ref:"Generic demo checklist", sections:[
+      { title:"Demo checklist — load your company checklist file for the real items", items:[
+        { k:"D1", t:"Panel indicators and controls checked" },
+        { k:"D2", t:"Alarm condition initiated and received correctly" },
+        { k:"D3", t:"Block plan present and legible" } ] } ] },
+    sixMonthly:{ label:"6 Monthly", ref:"Generic demo checklist", sections:[
+      { title:"Demo checklist — load your company checklist file for the real items", items:[
+        { k:"D1", t:"Panel indicators and controls checked" },
+        { k:"D2", t:"Alarm condition initiated and received correctly" },
+        { k:"D3", t:"Block plan present and legible" },
+        { k:"D4", t:"Emergency lighting 90-minute discharge test completed (use the Timer tool)" } ] } ] },
+    annual:{ label:"Annual", ref:"Generic demo checklist", deviceTargets:{ smokePct:50, thermalPct:20 }, sections:[
+      { title:"Demo checklist — load your company checklist file for the real items", items:[
+        { k:"D1", t:"Panel indicators and controls checked" },
+        { k:"D2", t:"Alarm condition initiated and received correctly" },
+        { k:"D3", t:"Devices tested per zone targets (progress shown above)" } ] } ] }
+  }
+};
+let fsChecklists = null;
+let fsSession = null;
+
+async function fsLoadChecklists() {
+  if (fsRegister && fsRegister.checklists && fsRegister.checklists.modes) { fsChecklists = fsRegister.checklists; return; }
+  try {
+    const c = await idbGet("fsChecklists");
+    if (c && c.modes) { fsChecklists = c; return; }
+  } catch (e) {}
+  fsChecklists = FS_GENERIC_CHECKLISTS;
+}
+function fsCkSourceLabel() {
+  if (!fsChecklists || fsChecklists.version === 0) return "Built-in demo checklist — load your company checklist file";
+  return "Checklist file v" + fsChecklists.version + (fsChecklists.updated ? " (" + fsChecklists.updated + ")" : "") + " loaded";
+}
+
+function fsSessKey() { return "fs-session:" + (fsSiteCtx ? fsSiteCtx.siteId : "nosite"); }
+function fsSaveSession() { try { localStorage.setItem(fsSessKey(), JSON.stringify(fsSession)); } catch (e) {} fsTestBtnRefresh(); }
+function fsClearSession() { fsSession = null; try { localStorage.removeItem(fsSessKey()); } catch (e) {} fsTestBtnRefresh(); }
+function fsRestoreSession() {
+  try { fsSession = JSON.parse(localStorage.getItem(fsSessKey()) || "null"); } catch (e) { fsSession = null; }
+  fsTestBtnRefresh();
+}
+function fsTestBtnRefresh() {
+  const b = document.getElementById("fsTestBtn");
+  if (!b) return;
+  if (fsSession && fsChecklists) {
+    const m = fsChecklists.modes[fsSession.mode];
+    b.innerHTML = "&#9679; " + ((m && m.label) || fsSession.mode) + " test&hellip;";
+    b.style.background = "#1f5c2e";
+  } else {
+    b.innerHTML = "&#9654; Start test";
+    b.style.background = "#1b8a3f";
+  }
+}
+
+function fsZoneProgress() {
+  const yr = +testYearSel;
+  const smokes = ["smoke", "csmoke"], therms = ["thermal", "cthermal"];
+  const zones = {};
+  allLevelObjects().forEach(e => {
+    const o = e.o;
+    if (o.kind !== "sym") return;
+    const g = smokes.includes(o.type) ? "s" : therms.includes(o.type) ? "t" : null;
+    if (!g) return;
+    const z = (o.zone || "").trim() || "Unzoned";
+    zones[z] = zones[z] || { s:[0, 0], t:[0, 0] };
+    zones[z][g][1]++;
+    if ((o.ty || []).includes(yr)) zones[z][g][0]++;
+  });
+  return zones;
+}
+function fsZoneTableHtml(zones, targets) {
+  const zn = Object.keys(zones).sort((a, b) => a === "Unzoned" ? 1 : b === "Unzoned" ? -1 : a.localeCompare(b, undefined, { numeric:true }));
+  if (!zn.length) return '<div style="font-size:13px;color:#999;margin:6px 0">No smoke/thermal detectors on this plan yet.</div>';
+  const sp = (targets && targets.smokePct || 50) / 100, tp = (targets && targets.thermalPct || 20) / 100;
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;margin:6px 0 10px"><tr style="color:#999;text-align:left"><th style="padding:3px 6px">Zone</th><th style="padding:3px 6px">Smokes (need ' + Math.round(sp * 100) + '%)</th><th style="padding:3px 6px">Thermals (need ' + Math.round(tp * 100) + '%)</th></tr>';
+  let ts = [0, 0], tt = [0, 0];
+  zn.forEach(z => {
+    const v = zones[z];
+    ts[0] += v.s[0]; ts[1] += v.s[1]; tt[0] += v.t[0]; tt[1] += v.t[1];
+    const needS = Math.ceil(v.s[1] * sp), needT = Math.ceil(v.t[1] * tp);
+    const okS = v.s[1] === 0 || v.s[0] >= needS, okT = v.t[1] === 0 || v.t[0] >= needT;
+    html += '<tr style="border-top:1px solid #3a3f46"><td style="padding:4px 6px;font-weight:700">' + fsEsc(z) + '</td>' +
+      '<td style="padding:4px 6px;color:' + (v.s[1] === 0 ? '#777' : okS ? '#4caf50' : '#ffb300') + '">' + (v.s[1] === 0 ? '—' : v.s[0] + " / " + v.s[1] + " (need " + needS + ") " + (okS ? "✓" : "")) + '</td>' +
+      '<td style="padding:4px 6px;color:' + (v.t[1] === 0 ? '#777' : okT ? '#4caf50' : '#ffb300') + '">' + (v.t[1] === 0 ? '—' : v.t[0] + " / " + v.t[1] + " (need " + needT + ") " + (okT ? "✓" : "")) + '</td></tr>';
+  });
+  html += '<tr style="border-top:2px solid #555;font-weight:800"><td style="padding:4px 6px">All</td><td style="padding:4px 6px">' + ts[0] + ' / ' + ts[1] + '</td><td style="padding:4px 6px">' + tt[0] + ' / ' + tt[1] + '</td></tr></table>';
+  return html;
+}
+
+async function fsOpenTest() {
+  if (!fsChecklists) await fsLoadChecklists();
+  fsTestBtnRefresh();
+  document.getElementById("fsTestModal").classList.add("show");
+  fsRenderTest();
+}
+function fsCloseTest() { document.getElementById("fsTestModal").classList.remove("show"); }
+
+function fsRenderTest() {
+  const box = document.getElementById("fsTestBody");
+  if (!fsSession) {
+    const openDef = ((fsSite && fsSite.defects) || []).filter(d => !d.closed).length;
+    let html = '<h3 style="margin-bottom:10px">Start test — ' + fsEsc(fsSiteCtx ? fsSiteCtx.siteName : "") + '</h3>';
+    if (openDef) html += '<div style="background:#3a2320;border:1px solid #c62828;border-radius:8px;padding:8px 12px;font-size:13.5px;color:#ff8a80;margin-bottom:10px">&#9888; ' + openDef + ' open defect' + (openDef > 1 ? 's' : '') + ' carried forward — check the Defects tab on the site page.</div>';
+    html += '<label>Technician</label><input type="text" id="fsTechName" autocomplete="off" value="' + fsEsc(localStorage.getItem("fs-user") || "") + '">';
+    html += '<label style="margin-top:10px">Test type</label><div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px">';
+    [["monthly", "Monthly"], ["sixMonthly", "6 Monthly"], ["annual", "Annual"]].forEach(([m, lbl]) => {
+      html += '<button class="btn fsModePick" data-mode="' + m + '" style="flex:1;min-width:110px;padding:14px 8px;font-size:15px;font-weight:700">' + lbl + '</button>';
+    });
+    html += '</div>';
+    html += '<div style="font-size:12.5px;color:#999;margin-bottom:10px">' + fsEsc(fsCkSourceLabel()) + ' &nbsp; <a id="fsCkLoad" style="color:#4fc3f7;cursor:pointer">Load checklist file</a></div>';
+    html += '<div class="row"><button class="btn" id="fsTestClose">Close</button></div>';
+    box.innerHTML = html;
+    document.querySelectorAll(".fsModePick").forEach(b => b.onclick = () => {
+      const tech = document.getElementById("fsTechName").value.trim();
+      if (tech) try { localStorage.setItem("fs-user", tech); } catch (e) {}
+      fsSession = { mode: b.dataset.mode, started: new Date().toISOString(), tech: tech, results: {}, obs: "" };
+      fsSaveSession();
+      fsRenderTest();
+    });
+    document.getElementById("fsCkLoad").onclick = () => document.getElementById("fsCkInput").click();
+    document.getElementById("fsTestClose").onclick = fsCloseTest;
+    return;
+  }
+
+  const def = fsChecklists.modes[fsSession.mode] || { label: fsSession.mode, sections: [] };
+  let html = '<h3 style="margin-bottom:2px">' + fsEsc(def.label) + ' test — ' + fsEsc(fsSiteCtx ? fsSiteCtx.siteName : "") + '</h3>';
+  html += '<div style="font-size:12px;color:#999;margin-bottom:10px">' + fsEsc(def.ref || "") + ' · started ' + fsSession.started.slice(0, 16).replace("T", " ") + (fsSession.tech ? ' · ' + fsEsc(fsSession.tech) : '') + '</div>';
+  if (fsSession.mode === "annual") {
+    html += '<div style="font-weight:700;font-size:14px;margin-top:4px">Device progress — tap devices in Test mode (year ' + testYearSel + ')</div>';
+    html += fsZoneTableHtml(fsZoneProgress(), def.deviceTargets);
+  }
+  (def.sections || []).forEach((sec, si) => {
+    html += '<div style="font-weight:700;font-size:14px;margin:12px 0 4px;color:#7ddb8f">' + fsEsc(sec.title) + '</div>';
+    (sec.items || []).forEach(it => {
+      const r = fsSession.results[it.k] || {};
+      html += '<div style="border-top:1px solid #3a3f46;padding:8px 0 6px">';
+      html += '<div style="display:flex;gap:10px;align-items:flex-start">';
+      html += '<div style="flex:1;font-size:13px"><b style="color:#bbb">' + fsEsc(it.k) + '</b> &nbsp;' + fsEsc(it.t) + '</div>';
+      html += '<div style="display:flex;gap:4px;flex:0 0 auto">';
+      [["P", "#1b8a3f"], ["F", "#c62828"], ["NA", "#666"]].forEach(([v, col]) => {
+        const on = r.r === v;
+        html += '<button class="btn fsCk" data-k="' + fsEsc(it.k) + '" data-r="' + v + '" style="padding:7px 11px;font-weight:800;min-width:40px;' + (on ? 'background:' + col + ';border-color:' + col + ';color:#fff' : '') + '">' + v + '</button>';
+      });
+      html += '</div></div>';
+      if (r.r === "F") html += '<input type="text" class="fsCkNote" data-k="' + fsEsc(it.k) + '" placeholder="Defect note…" value="' + fsEsc(r.note || "") + '" style="width:100%;margin-top:6px;background:#1a1d21;border:1px solid #c62828;border-radius:6px;color:#e8e8e8;padding:7px;font-size:13px">';
+      html += '</div>';
+    });
+  });
+  html += '<label style="margin-top:12px">Observations / comments</label><textarea id="fsObs" rows="2" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:13.5px">' + fsEsc(fsSession.obs || "") + '</textarea>';
+  html += '<div class="row" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">';
+  html += '<button class="btn" id="fsTestClose">Close (keep running)</button><span style="flex:1"></span>';
+  html += '<button class="btn danger" id="fsTestCancel">Cancel test</button>';
+  html += '<button class="btn" id="fsTestFinish" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:800">&#10003; Finish &amp; record</button></div>';
+  box.innerHTML = html;
+
+  document.querySelectorAll(".fsCk").forEach(b => b.onclick = () => {
+    const k = b.dataset.k;
+    const cur = fsSession.results[k] || {};
+    fsSession.results[k] = (cur.r === b.dataset.r) ? {} : { r: b.dataset.r, note: cur.note || "" };
+    fsSaveSession();
+    fsRenderTest();
+  });
+  document.querySelectorAll(".fsCkNote").forEach(inp => inp.onchange = () => {
+    const k = inp.dataset.k;
+    fsSession.results[k] = fsSession.results[k] || { r: "F" };
+    fsSession.results[k].note = inp.value.trim();
+    fsSaveSession();
+  });
+  document.getElementById("fsObs").onchange = () => { fsSession.obs = document.getElementById("fsObs").value; fsSaveSession(); };
+  document.getElementById("fsTestClose").onclick = fsCloseTest;
+  document.getElementById("fsTestCancel").onclick = () => {
+    if (!confirm("Cancel this test? Checklist answers will be discarded (device ticks stay on the plan).")) return;
+    fsClearSession();
+    fsRenderTest();
+  };
+  document.getElementById("fsTestFinish").onclick = fsFinishTest;
+}
+
+function fsFinishTest() {
+  const def = fsChecklists.modes[fsSession.mode] || { label: fsSession.mode, sections: [] };
+  let p = 0, f = 0, na = 0;
+  const fails = [];
+  (def.sections || []).forEach(sec => (sec.items || []).forEach(it => {
+    const r = (fsSession.results[it.k] || {}).r;
+    if (r === "P") p++;
+    else if (r === "F") { f++; fails.push({ k: it.k, t: it.t, note: (fsSession.results[it.k] || {}).note || "" }); }
+    else if (r === "NA") na++;
+  }));
+  const answered = p + f + na;
+  let total = 0;
+  (def.sections || []).forEach(sec => total += (sec.items || []).length);
+  if (answered < total && !confirm(answered + " of " + total + " checklist items answered. Finish anyway?")) return;
+  if (!confirm("Finish and record this " + def.label + " test?")) return;
+
+  const yr = +testYearSel;
+  const devAll = allLevelObjects().filter(e => e.o.kind === "sym");
+  const tested = devAll.filter(e => (e.o.ty || []).includes(yr)).length;
+  const failedDev = devAll.filter(e => e.o.failed).map(e => ({
+    type: (TYPE_MAP[e.o.type] || {}).label || e.o.type,
+    zone: e.o.zone || "", loop: e.o.loop || "", dev: e.o.dev || "", info: e.o.info || "", level: e.level
+  }));
+  const rec = {
+    id: "t" + Date.now(), mode: fsSession.mode, label: def.label, ref: def.ref || "",
+    started: fsSession.started, finished: new Date().toISOString(), tech: fsSession.tech || "", year: yr,
+    checklist: { p: p, f: f, na: na, total: total, results: fsSession.results },
+    devices: { tested: tested, total: devAll.length },
+    zones: fsSession.mode === "annual" ? fsZoneProgress() : null,
+    failsChecklist: fails, failedDevices: failedDev, obs: fsSession.obs || ""
+  };
+  const site = fsSite;
+  site.history = site.history || [];
+  site.history.unshift(rec);
+  site.defects = site.defects || [];
+  const mkid = () => "d" + Date.now() + Math.random().toString(16).slice(2, 6);
+  fails.forEach(x => site.defects.push({ id: mkid(), created: rec.finished, source: def.label + " test", desc: "Checklist " + x.k + " failed: " + x.t + (x.note ? " — " + x.note : ""), closed: null }));
+  failedDev.forEach(d => site.defects.push({ id: mkid(), created: rec.finished, source: def.label + " test", desc: d.type + (d.zone ? " Z" + d.zone : "") + (d.dev ? " D" + d.dev : "") + (d.info ? " — " + d.info : "") + " (failed device, " + d.level + ")", closed: null }));
+  site.testing = site.testing || {};
+  const map = { monthly: "lastMonthly", sixMonthly: "last6m", annual: "lastAnnual" };
+  site.testing[map[fsSession.mode]] = rec.finished.slice(0, 10);
+  fsMarkDirty();
+  fsClearSession();
+  fsCloseTest();
+  const openNow = site.defects.filter(d => !d.closed).length;
+  alert("✓ " + def.label + " test recorded.\nChecklist: " + p + " pass · " + f + " fail · " + na + " N/A" +
+    (devAll.length ? "\nDevices: " + tested + " / " + devAll.length + " tested (" + yr + ")" : "") +
+    (openNow ? "\nOpen defects now: " + openNow : "") +
+    "\n\nRemember to Export register so colleagues get the record.");
+}
+
+document.getElementById("fsTestBtn").onclick = fsOpenTest;
+document.getElementById("fsCkInput").addEventListener("change", e => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const obj = JSON.parse(rd.result);
+      if (obj.app !== "firespark-checklists" || !obj.modes) { alert("That doesn't look like a FireSpark checklist file."); return; }
+      fsChecklists = obj;
+      idbPut("fsChecklists", obj).catch(() => {});
+      if (fsRegister) { fsRegister.checklists = obj; fsMarkDirty(); }
+      alert("Checklist file loaded ✓ — it's now cached on this device and saved into the register (export to share).");
+      fsRenderTest();
+    } catch (err) { alert("Could not read that file: " + err.message); }
+  };
+  rd.readAsText(file);
+});
 
 (async () => {
   try {
