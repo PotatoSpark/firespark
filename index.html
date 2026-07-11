@@ -88,24 +88,33 @@
 </head>
 <body>
 <style>
-  #fsReg { position:fixed; inset:0; background:#eef1f4; color:#17262e; z-index:80; overflow-y:auto; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  #fsReg { --fs-bg:#eef1f4; --fs-card:#ffffff; --fs-text:#17262e; --fs-sub:#5b6b73; --fs-sub2:#7c8a91; --fs-faint:#9fb0b7; --fs-border:#dfe5e9; --fs-accent:#0f5e6b; --fs-accentD:#0b4954;
+    position:fixed; inset:0; background:var(--fs-bg); color:var(--fs-text); z-index:80; overflow-y:auto; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  #fsReg.fsdark { --fs-bg:#15181c; --fs-card:#23272d; --fs-text:#e8e8e8; --fs-sub:#aab6bc; --fs-sub2:#8b979d; --fs-faint:#6d787e; --fs-border:#3a3f46; --fs-accent:#2596ab; --fs-accentD:#1b7487; }
   #fsReg .wrap { max-width:1060px; margin:0 auto; padding:18px 18px 80px; }
-  .fscard { background:#ffffff; border:1px solid #e2e7ea; border-radius:14px; box-shadow:0 1px 3px rgba(20,40,50,.05); }
-  .fsbtn { border:1px solid #cfd8dc; background:#ffffff; color:#17262e; border-radius:10px; padding:10px 16px; font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; }
-  .fsbtn:active { background:#f0f3f5; }
-  .fsbtnP { border:1px solid #0f5e6b; background:#0f5e6b; color:#fff; border-radius:10px; padding:10px 18px; font-size:14px; font-weight:700; cursor:pointer; touch-action:manipulation; }
-  .fsbtnP:active { background:#0b4954; }
-  .fstab { padding:12px 4px; margin-right:22px; font-size:14.5px; color:#5b6b73; cursor:pointer; border-bottom:3px solid transparent; font-weight:600; white-space:nowrap; }
-  .fstab.on { color:#0f5e6b; border-bottom-color:#0f5e6b; }
-  .fsinput { width:100%; background:#fff; border:1px solid #cfd8dc; border-radius:8px; color:#17262e; padding:9px; font-size:14px; font-family:inherit; }
-  .fslabel { font-size:12px; color:#5b6b73; margin:10px 0 3px; font-weight:600; }
+  .fscard { background:var(--fs-card); border:1px solid var(--fs-border); border-radius:14px; box-shadow:0 1px 3px rgba(20,40,50,.05); }
+  .fsbtn { border:1px solid var(--fs-border); background:var(--fs-card); color:var(--fs-text); border-radius:10px; padding:11px 16px; font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; }
+  .fsbtn:active { opacity:.75; }
+  .fsbtnP { border:1px solid var(--fs-accent); background:var(--fs-accent); color:#fff; border-radius:10px; padding:11px 18px; font-size:14px; font-weight:700; cursor:pointer; touch-action:manipulation; }
+  .fsbtnP:active { background:var(--fs-accentD); }
+  .fstab { padding:13px 4px; margin-right:22px; font-size:14.5px; color:var(--fs-sub); cursor:pointer; border-bottom:3px solid transparent; font-weight:600; white-space:nowrap; }
+  .fstab.on { color:var(--fs-accent); border-bottom-color:var(--fs-accent); }
+  .fsinput { width:100%; background:var(--fs-card); border:1px solid var(--fs-border); border-radius:8px; color:var(--fs-text); padding:10px; font-size:15px; font-family:inherit; }
+  .fslabel { font-size:12px; color:var(--fs-sub); margin:10px 0 3px; font-weight:600; }
+  @media (max-width:720px) {
+    #fsReg .wrap { padding:12px 10px 70px; }
+    #fsReg h1 { font-size:24px !important; }
+    .fstab { margin-right:14px; font-size:13.5px; padding:12px 2px; }
+    .fsbtnP, .fsbtn { padding:12px 14px; }
+  }
 </style>
 <div id="fsReg">
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
       <span style="font-size:21px;font-weight:800;color:#c8340f">&#128293; FIRESPARK</span>
-      <span style="font-size:11px;color:#7c8a91">v0.2 beta</span>
+      <span style="font-size:11px;color:#7c8a91">v0.3 beta</span>
       <span style="flex:1"></span>
+      <button class="fsbtn" id="fsThemeBtn" title="Light / dark">&#127765;</button>
       <button class="fsbtn" id="fsExportReg" style="display:none">&#128190; Export register</button>
     </div>
     <div id="fsRegStamp" style="font-size:11.5px;color:#7c8a91;margin-bottom:16px"></div>
@@ -141,7 +150,7 @@
 
   <div id="topbar">
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.2 beta</span></span>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.3 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans">&#9776; Plans</button>
     <button class="btn" id="btnNew">&#65291; New</button>
@@ -3994,9 +4003,9 @@ function fsStamp() {
 
 function fsCycleStatus(site, cyc) {
   const t = (site.testing || {})[cyc.key];
-  if (!t) return { col:"#7c8a91", txt:"No record", overdue:false };
+  if (!t) return { col:"var(--fs-sub2)", txt:"No record", overdue:false };
   const last = new Date(t);
-  if (isNaN(last)) return { col:"#7c8a91", txt:"No record", overdue:false };
+  if (isNaN(last)) return { col:"var(--fs-sub2)", txt:"No record", overdue:false };
   const due = new Date(last); due.setMonth(due.getMonth() + cyc.months);
   const days = Math.floor((due - Date.now()) / 86400000);
   const nice = due.toLocaleDateString(undefined, { day:"numeric", month:"short" });
@@ -4010,7 +4019,7 @@ function fsSiteWorstDot(site) {
     const st = fsCycleStatus(site, c);
     if (st.col === "#c62828") worst = "#c62828";
     else if (st.col === "#b58900" && worst !== "#c62828") worst = "#b58900";
-    else if (st.col === "#7c8a91" && worst === "#1b8a3f") worst = "#7c8a91";
+    else if (st.col === "var(--fs-sub2)" && worst === "#1b8a3f") worst = "var(--fs-sub2)";
   });
   return worst;
 }
@@ -4026,7 +4035,7 @@ function fsRenderClients() {
     row.className = "fscard";
     row.style.cssText += ";padding:16px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:12px";
     row.innerHTML = '<div style="flex:1"><div style="font-size:16.5px;font-weight:700">' + fsEsc(c.name) +
-      '</div><div style="font-size:12.5px;color:#7c8a91">' + (c.sites || []).length + ' sites</div></div><div style="color:#9fb0b7">&#9654;</div>';
+      '</div><div style="font-size:12.5px;color:var(--fs-sub2)">' + (c.sites || []).length + ' sites</div></div><div style="color:var(--fs-faint)">&#9654;</div>';
     row.onclick = () => { fsClient = c; fsRenderSites(); fsShow("fsSitesView"); };
     wrap.appendChild(row);
   });
@@ -4040,24 +4049,53 @@ function fsRenderSites() {
     row.className = "fscard";
     row.style.cssText += ";padding:14px 16px;margin-bottom:9px;cursor:pointer;display:flex;align-items:center;gap:12px";
     row.innerHTML = '<span style="width:12px;height:12px;border-radius:50%;background:' + fsSiteWorstDot(s) + ';flex:0 0 auto"></span>' +
-      '<div style="flex:1;font-size:15.5px;font-weight:600">' + fsEsc(s.name) + '</div><div style="color:#9fb0b7">&#9654;</div>';
+      '<div style="flex:1;font-size:15.5px;font-weight:600">' + fsEsc(s.name) + '</div><div style="color:var(--fs-faint)">&#9654;</div>';
     row.onclick = () => { fsSite = s; fsTab = "overview"; fsInfoEdit = false; fsEquipEdit = false; fsRenderSite(); fsShow("fsSiteView"); };
     wrap.appendChild(row);
   });
 }
 
 /* ---------- site page ---------- */
+function fsInfoPhotoHtml() {
+  const s = fsSite;
+  let html = "";
+  html += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">';
+  html += '<div class="fscard" style="flex:2;min-width:300px;padding:20px">';
+  html += '<div style="display:flex;align-items:center;margin-bottom:8px"><h3 style="font-size:17px;font-weight:700;flex:1">Site information</h3><a id="fsInfoEditBtn" style="color:var(--fs-accent);font-weight:700;cursor:pointer">' + (fsInfoEdit ? 'Save' : 'Edit') + '</a></div>';
+  const infoRows = [["Access requirements", "access"], ["Contacts", "contacts"], ["Further information", "furtherInfo"]];
+  infoRows.forEach(([label, key]) => {
+    if (fsInfoEdit) {
+      html += '<div class="fslabel">' + label + '</div><textarea class="fsinput fsInfoField" data-key="' + key + '" rows="2">' + fsEsc(s[key] || "") + '</textarea>';
+    } else if (s[key]) {
+      html += '<div style="display:flex;border-top:1px solid var(--fs-border);padding:11px 0"><div style="width:38%;color:var(--fs-sub);font-size:13.5px">' + label + '</div><div style="flex:1;font-weight:600;font-size:14px;white-space:pre-wrap">' + fsEsc(s[key]) + '</div></div>';
+    }
+  });
+  if (!fsInfoEdit && !infoRows.some(([l, k]) => s[k])) html += '<div style="color:var(--fs-faint);font-size:13px">Nothing recorded yet — tap Edit.</div>';
+  html += '</div>';
+
+  // site photo card
+  html += '<div class="fscard" style="flex:1;min-width:230px;padding:14px;display:flex;flex-direction:column;gap:8px">';
+  html += '<div style="font-size:14px;font-weight:700;color:var(--fs-sub)">Site photo</div>';
+  html += s.photo
+    ? '<img id="fsSitePhoto" src="' + s.photo + '" style="width:100%;height:180px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to replace">'
+    : '<div id="fsSitePhoto" style="width:100%;height:180px;border:2px dashed var(--fs-border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--fs-faint);font-size:13px;cursor:pointer">Tap to add site photo</div>';
+  html += '</div></div>';
+
+  return html;
+}
+
+
 function fsRenderSite() {
   const s = fsSite;
   s.equipment = s.equipment || {};
   const wrap = document.getElementById("fsSiteView");
   const addr = s.address || (s.fields && (s.fields.Address || s.fields.address)) || "";
 
-  let html = '<div style="margin-bottom:14px"><a id="fsBackSites" style="color:#0f5e6b;font-weight:700;cursor:pointer;font-size:15px">&#8592; ' + fsEsc(fsClient.name) + '</a></div>';
+  let html = '<div style="margin-bottom:14px"><a id="fsBackSites" style="color:var(--fs-accent);font-weight:700;cursor:pointer;font-size:15px">&#8592; ' + fsEsc(fsClient.name) + '</a></div>';
   html += '<div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px">';
-  html += '<div style="flex:1;min-width:250px"><div style="font-size:11px;letter-spacing:2px;color:#0f5e6b;font-weight:800">SITE</div>';
+  html += '<div style="flex:1;min-width:250px"><div style="font-size:11px;letter-spacing:2px;color:var(--fs-accent);font-weight:800">SITE</div>';
   html += '<h1 style="font-size:32px;font-weight:700;margin:2px 0 4px">' + fsEsc(s.name) + '</h1>';
-  if (addr) html += '<div style="color:#5b6b73;font-size:15px">' + fsEsc(addr) + '</div>';
+  if (addr) html += '<div style="color:var(--fs-sub);font-size:15px">' + fsEsc(addr) + '</div>';
   html += '</div><div style="display:flex;gap:10px;align-items:center;padding-top:22px">';
   if (s.mapUrl) html += '<button class="fsbtn" id="fsMapBtn">Open in maps</button>';
   html += '<button class="fsbtnP" id="fsOpenWs">Open Site Workspace &nbsp;&#8594;</button></div></div>';
@@ -4066,39 +4104,16 @@ function fsRenderSite() {
   html += '<div class="fscard" style="display:flex;flex-wrap:wrap;margin-bottom:16px">';
   FS_CYCLES.forEach((c, i) => {
     const st = fsCycleStatus(s, c);
-    html += '<div style="flex:1;min-width:170px;padding:16px 20px;' + (i ? 'border-left:1px solid #e2e7ea' : '') + '">' +
-      '<div style="font-size:13px;color:#5b6b73">' + c.label + '</div>' +
+    html += '<div style="flex:1;min-width:170px;padding:16px 20px;' + (i ? 'border-left:1px solid var(--fs-border)' : '') + '">' +
+      '<div style="font-size:13px;color:var(--fs-sub)">' + c.label + '</div>' +
       '<div style="font-size:19px;font-weight:800;color:' + st.col + ';margin:3px 0 6px">' + st.txt + '</div>' +
-      '<div style="font-size:11px;color:#7c8a91">last done <input type="date" class="fsCycDate" data-key="' + c.key + '" value="' + fsEsc((s.testing || {})[c.key] || "") + '" style="border:1px solid #cfd8dc;border-radius:6px;padding:3px;font-size:11px"></div></div>';
+      '<div style="font-size:11px;color:var(--fs-sub2)">last done <input type="date" class="fsCycDate" data-key="' + c.key + '" value="' + fsEsc((s.testing || {})[c.key] || "") + '" style="border:1px solid var(--fs-border);border-radius:6px;padding:3px;font-size:11px"></div></div>';
   });
   const openDef = (s.defects || []).filter(d => !d.closed).length;
-  html += '<div style="flex:1;min-width:140px;padding:16px 20px;border-left:1px solid #e2e7ea">' +
-    '<div style="font-size:13px;color:#5b6b73">Open defects</div>' +
-    '<div style="font-size:26px;font-weight:800;margin-top:2px;color:' + (openDef ? '#c62828' : '#17262e') + '">' + openDef + '</div></div>';
+  html += '<div style="flex:1;min-width:140px;padding:16px 20px;border-left:1px solid var(--fs-border)">' +
+    '<div style="font-size:13px;color:var(--fs-sub)">Open defects</div>' +
+    '<div style="font-size:26px;font-weight:800;margin-top:2px;color:' + (openDef ? '#c62828' : 'var(--fs-text)') + '">' + openDef + '</div></div>';
   html += '</div>';
-
-  // info + photo row
-  html += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">';
-  html += '<div class="fscard" style="flex:2;min-width:300px;padding:20px">';
-  html += '<div style="display:flex;align-items:center;margin-bottom:8px"><h3 style="font-size:17px;font-weight:700;flex:1">Site information</h3><a id="fsInfoEditBtn" style="color:#0f5e6b;font-weight:700;cursor:pointer">' + (fsInfoEdit ? 'Save' : 'Edit') + '</a></div>';
-  const infoRows = [["Access requirements", "access"], ["Contacts", "contacts"], ["Further information", "furtherInfo"]];
-  infoRows.forEach(([label, key]) => {
-    if (fsInfoEdit) {
-      html += '<div class="fslabel">' + label + '</div><textarea class="fsinput fsInfoField" data-key="' + key + '" rows="2">' + fsEsc(s[key] || "") + '</textarea>';
-    } else if (s[key]) {
-      html += '<div style="display:flex;border-top:1px solid #eef1f3;padding:11px 0"><div style="width:38%;color:#5b6b73;font-size:13.5px">' + label + '</div><div style="flex:1;font-weight:600;font-size:14px;white-space:pre-wrap">' + fsEsc(s[key]) + '</div></div>';
-    }
-  });
-  if (!fsInfoEdit && !infoRows.some(([l, k]) => s[k])) html += '<div style="color:#9fb0b7;font-size:13px">Nothing recorded yet — tap Edit.</div>';
-  html += '</div>';
-
-  // site photo card
-  html += '<div class="fscard" style="flex:1;min-width:230px;padding:14px;display:flex;flex-direction:column;gap:8px">';
-  html += '<div style="font-size:14px;font-weight:700;color:#5b6b73">Site photo</div>';
-  html += s.photo
-    ? '<img id="fsSitePhoto" src="' + s.photo + '" style="width:100%;height:180px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to replace">'
-    : '<div id="fsSitePhoto" style="width:100%;height:180px;border:2px dashed #cfd8dc;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#9fb0b7;font-size:13px;cursor:pointer">Tap to add site photo</div>';
-  html += '</div></div>';
 
   // tabs
   const tabs = [["overview", "Overview"], ["equip", "Site Equipment"], ["history", "Test history"], ["defects", "Defects"], ["files", "Files & photos"]];
@@ -4122,15 +4137,6 @@ function fsRenderSite() {
       fsRenderSite();
     });
   });
-  document.getElementById("fsInfoEditBtn").onclick = () => {
-    if (fsInfoEdit) {
-      document.querySelectorAll(".fsInfoField").forEach(f => { s[f.dataset.key] = f.value.trim(); });
-      fsMarkDirty();
-    }
-    fsInfoEdit = !fsInfoEdit;
-    fsRenderSite();
-  };
-  document.getElementById("fsSitePhoto").onclick = () => { fsPhotoTarget = { kind:"site" }; document.getElementById("fsPhotoInput").click(); };
   document.querySelectorAll(".fstab").forEach(t => {
     t.onclick = () => { fsTab = t.dataset.tab; fsEquipEdit = false; fsRenderSite(); };
   });
@@ -4143,24 +4149,25 @@ function fsRenderTab() {
   let html = "";
 
   if (fsTab === "overview") {
+    html += fsInfoPhotoHtml();
     const extras = Object.entries(s.fields || {}).filter(([k]) => !/^address$/i.test(k));
-    html += '<div class="fscard" style="padding:20px">';
+    html += '<div class="fscard" style="padding:20px;margin-top:16px">';
     if (s.panelInstructions) html += '<div class="fslabel">Panel instructions</div><div style="font-size:14px;white-space:pre-wrap;margin-bottom:10px">' + fsEsc(s.panelInstructions) + '</div>';
     if (s.additionalInfo) html += '<div class="fslabel">Additional info</div><div style="font-size:14px;white-space:pre-wrap;margin-bottom:10px">' + fsEsc(s.additionalInfo) + '</div>';
     if (extras.length) {
       html += '<div class="fslabel">Register details</div><table style="width:100%;border-collapse:collapse;font-size:13.5px">';
       extras.forEach(([k, v]) => {
-        html += '<tr><td style="border-top:1px solid #eef1f3;padding:8px 6px;color:#5b6b73;width:38%">' + fsEsc(k) + '</td><td style="border-top:1px solid #eef1f3;padding:8px 6px;font-weight:600">' + fsEsc(v) + '</td></tr>';
+        html += '<tr><td style="border-top:1px solid var(--fs-border);padding:8px 6px;color:var(--fs-sub);width:38%">' + fsEsc(k) + '</td><td style="border-top:1px solid var(--fs-border);padding:8px 6px;font-weight:600">' + fsEsc(v) + '</td></tr>';
       });
       html += '</table>';
     }
-    if (!s.panelInstructions && !s.additionalInfo && !extras.length) html += '<div style="color:#9fb0b7;font-size:13.5px">Nothing further recorded for this site.</div>';
+    if (!s.panelInstructions && !s.additionalInfo && !extras.length) html += '<div style="color:var(--fs-faint);font-size:13.5px">Nothing further recorded for this site.</div>';
     html += '</div>';
   }
 
   if (fsTab === "equip") {
     html += '<div class="fscard" style="padding:20px">';
-    html += '<div style="display:flex;align-items:center;margin-bottom:8px"><h3 style="font-size:16px;font-weight:700;flex:1">Site equipment</h3><a id="fsEquipEditBtn" style="color:#0f5e6b;font-weight:700;cursor:pointer">' + (fsEquipEdit ? 'Save' : 'Edit') + '</a></div>';
+    html += '<div style="display:flex;align-items:center;margin-bottom:8px"><h3 style="font-size:16px;font-weight:700;flex:1">Site equipment</h3><a id="fsEquipEditBtn" style="color:var(--fs-accent);font-weight:700;cursor:pointer">' + (fsEquipEdit ? 'Save' : 'Edit') + '</a></div>';
     let shown = 0;
     FS_EQUIP_FIELDS.forEach(k => {
       const en = s.equipment[k] || {};
@@ -4172,28 +4179,28 @@ function fsRenderTab() {
           '</div>' + (en.photo ? '<img src="' + en.photo + '" style="max-width:150px;max-height:100px;border-radius:8px;margin-top:6px">' : '');
       } else if (en.v || en.photo) {
         shown++;
-        html += '<div style="display:flex;border-top:1px solid #eef1f3;padding:11px 0;gap:10px"><div style="width:38%;color:#5b6b73;font-size:13.5px">' + k + '</div>' +
+        html += '<div style="display:flex;border-top:1px solid var(--fs-border);padding:11px 0;gap:10px"><div style="width:38%;color:var(--fs-sub);font-size:13.5px">' + k + '</div>' +
           '<div style="flex:1"><div style="font-weight:600;font-size:14px;white-space:pre-wrap">' + fsEsc(en.v || "") + '</div>' +
           (en.photo ? '<img src="' + en.photo + '" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px">' : '') + '</div></div>';
       }
     });
-    if (!fsEquipEdit && !shown) html += '<div style="color:#9fb0b7;font-size:13.5px">No equipment recorded — tap Edit to add panel, extinguisher, battery details and photos. Empty fields stay hidden.</div>';
+    if (!fsEquipEdit && !shown) html += '<div style="color:var(--fs-faint);font-size:13.5px">No equipment recorded — tap Edit to add panel, extinguisher, battery details and photos. Empty fields stay hidden.</div>';
     html += '</div>';
   }
 
   if (fsTab === "history") {
-    html += '<div class="fscard" style="padding:20px;color:#5b6b73;font-size:14px">Recorded tests will appear here once test mode lands (next build). Each completed Monthly / 6 monthly / Annual will be listed with date, technician and results, with export.</div>';
+    html += '<div class="fscard" style="padding:20px;color:var(--fs-sub);font-size:14px">Recorded tests will appear here once test mode lands (next build). Each completed Monthly / 6 monthly / Annual will be listed with date, technician and results, with export.</div>';
   }
   if (fsTab === "defects") {
     const defs = (s.defects || []);
-    html += '<div class="fscard" style="padding:20px;color:#5b6b73;font-size:14px">' +
+    html += '<div class="fscard" style="padding:20px;color:var(--fs-sub);font-size:14px">' +
       (defs.length ? '' : 'No defects recorded. Failed items from test mode will carry forward here until rectified (next build).') + '</div>';
   }
   if (fsTab === "files") {
     html += '<div class="fscard" style="padding:20px">';
     html += '<div style="display:flex;align-items:center;margin-bottom:10px"><h3 style="font-size:16px;font-weight:700;flex:1">Files &amp; photos</h3><button class="fsbtn" id="fsFilesAdd">&#128247; Add photo</button></div>';
     const ph = s.photos || [];
-    if (!ph.length) html += '<div style="color:#9fb0b7;font-size:13.5px">No photos yet.</div>';
+    if (!ph.length) html += '<div style="color:var(--fs-faint);font-size:13.5px">No photos yet.</div>';
     else {
       html += '<div style="display:flex;gap:10px;flex-wrap:wrap">';
       ph.forEach((p, i) => {
@@ -4206,6 +4213,18 @@ function fsRenderTab() {
   }
 
   body.innerHTML = html;
+
+  if (fsTab === "overview") {
+    document.getElementById("fsInfoEditBtn").onclick = () => {
+      if (fsInfoEdit) {
+        document.querySelectorAll(".fsInfoField").forEach(f => { s[f.dataset.key] = f.value.trim(); });
+        fsMarkDirty();
+      }
+      fsInfoEdit = !fsInfoEdit;
+      fsRenderTab();
+    };
+    document.getElementById("fsSitePhoto").onclick = () => { fsPhotoTarget = { kind:"site" }; document.getElementById("fsPhotoInput").click(); };
+  }
 
   if (fsTab === "equip") {
     document.getElementById("fsEquipEditBtn").onclick = () => {
@@ -4338,6 +4357,15 @@ document.getElementById("fsExportReg").onclick = () => {
   deliverFile(new Blob([JSON.stringify(fsRegister)], { type:"application/json" }),
     "wormald-register-" + fsRegister.updated + ".json", "application/json");
 };
+document.getElementById("fsThemeBtn").onclick = () => {
+  const reg = document.getElementById("fsReg");
+  reg.classList.toggle("fsdark");
+  try { localStorage.setItem("fs-theme", reg.classList.contains("fsdark") ? "dark" : "light"); } catch (e) {}
+};
+try {
+  if (localStorage.getItem("fs-theme") === "dark") document.getElementById("fsReg").classList.add("fsdark");
+} catch (e) {}
+
 document.getElementById("fsSearch").addEventListener("input", fsRenderClients);
 document.getElementById("fsBackClients").onclick = () => fsShow("fsClientsView");
 
