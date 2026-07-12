@@ -159,7 +159,7 @@
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
       <span style="font-size:21px;font-weight:800;color:#c8340f;display:inline-flex;align-items:center;gap:8px"><img src="icon-192.png" style="width:26px;height:26px;border-radius:6px" alt=""> FIRESPARK</span>
-      <span style="font-size:11px;color:#7c8a91">v0.16 beta</span>
+      <span style="font-size:11px;color:#7c8a91">v0.17 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsThemeBtn" title="Light / dark">&#127765;</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -192,6 +192,13 @@
 
     <div id="fsSiteView" style="display:none"></div>
     <input type="file" id="fsPhotoInput" accept="image/*" style="display:none">
+    <div id="fsLightbox" style="display:none;position:fixed;inset:0;z-index:210;background:rgba(10,14,16,.93);overflow:auto;text-align:center;cursor:zoom-out">
+      <div style="position:sticky;top:0;display:flex;justify-content:flex-end;gap:8px;padding:10px;z-index:1">
+        <button class="fsbtn" id="fsLbReplace" style="display:none">&#8635; Replace photo</button>
+        <button class="fsbtn" id="fsLbClose">&#10005; Close</button>
+      </div>
+      <img id="fsLbImg" src="" alt="Photo" style="max-width:96vw;max-height:85vh;border-radius:8px;cursor:zoom-in;margin:0 12px 20px">
+    </div>
   </div>
 </div>
 
@@ -201,7 +208,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.16 beta</span></span>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.17 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -5605,11 +5612,11 @@ function fsInfoPhotoHtml() {
   if (!spAll.length) {
     html += '<div id="fsSitePhotoAdd" style="width:100%;height:180px;border:2px dashed var(--fs-border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--fs-faint);font-size:13px;cursor:pointer">Tap to add site photo</div>';
   } else {
-    html += '<img class="fsSpTile" data-i="0" src="' + spAll[0] + '" style="width:100%;height:180px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to replace">';
+    html += '<img class="fsSpTile" data-i="0" src="' + spAll[0] + '" style="width:100%;height:180px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">';
     if (spAll.length > 1) {
       html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
       spAll.slice(1).forEach((p, i) => {
-        html += '<div style="position:relative"><img class="fsSpTile" data-i="' + (i + 1) + '" src="' + p + '" style="width:74px;height:56px;object-fit:cover;border-radius:8px;cursor:pointer" title="Tap to replace">' +
+        html += '<div style="position:relative"><img class="fsSpTile" data-i="' + (i + 1) + '" src="' + p + '" style="width:74px;height:56px;object-fit:cover;border-radius:8px;cursor:pointer" title="Tap to view full size">' +
           '<div class="fsSpDel" data-i="' + (i + 1) + '" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#c62828;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer">&#10005;</div></div>';
       });
       html += '</div>';
@@ -5637,19 +5644,20 @@ function fsRenderSite() {
   if (s.mapUrl) html += '<button class="fsbtn" id="fsMapBtn">Open in maps</button>';
   html += '<button class="fsbtnP" id="fsOpenWs">Open Site Workspace &nbsp;&#8594;</button></div></div>';
 
-  // status strip
-  html += '<div class="fscard" style="display:flex;flex-wrap:wrap;margin-bottom:16px">';
+  // status strip - compact (testing info shouldn't steal the show; Overview is the main event)
+  html += '<div class="fscard" style="display:flex;flex-wrap:wrap;align-items:stretch;margin-bottom:14px">';
   FS_CYCLES.forEach((c, i) => {
     const st = fsCycleStatus(s, c);
-    html += '<div style="flex:1;min-width:170px;padding:16px 20px;' + (i ? 'border-left:1px solid var(--fs-border)' : '') + '">' +
-      '<div style="font-size:13px;color:var(--fs-sub)">' + c.label + '</div>' +
-      '<div style="font-size:19px;font-weight:800;color:' + st.col + ';margin:3px 0 6px">' + st.txt + '</div>' +
-      '<div style="font-size:11px;color:var(--fs-sub2)">last done <input type="date" class="fsCycDate" data-key="' + c.key + '" value="' + fsEsc((s.testing || {})[c.key] || "") + '" style="border:1px solid var(--fs-border);border-radius:6px;padding:3px;font-size:11px"></div></div>';
+    html += '<div style="flex:1;min-width:118px;padding:7px 12px;' + (i ? 'border-left:1px solid var(--fs-border)' : '') + '">' +
+      '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase">' + c.label + '</div>' +
+      '<div style="font-size:12.5px;font-weight:700;color:' + st.col + ';margin:1px 0 2px;white-space:nowrap">' + st.txt + '</div>' +
+      '<input type="date" class="fsCycDate" data-key="' + c.key + '" value="' + fsEsc((s.testing || {})[c.key] || "") + '" title="Last done" style="border:1px solid var(--fs-border);border-radius:5px;padding:1px 2px;font-size:10px;color:var(--fs-sub2);background:transparent;max-width:110px">' +
+      '</div>';
   });
   const openDef = (s.defects || []).filter(d => !d.closed).length;
-  html += '<div style="flex:1;min-width:140px;padding:16px 20px;border-left:1px solid var(--fs-border)">' +
-    '<div style="font-size:13px;color:var(--fs-sub)">Open defects</div>' +
-    '<div style="font-size:26px;font-weight:800;margin-top:2px;color:' + (openDef ? '#c62828' : 'var(--fs-text)') + '">' + openDef + '</div></div>';
+  html += '<div style="flex:0 0 auto;min-width:84px;padding:7px 12px;border-left:1px solid var(--fs-border);display:flex;flex-direction:column;justify-content:center">' +
+    '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase">Defects</div>' +
+    '<div style="font-size:17px;font-weight:800;color:' + (openDef ? '#c62828' : 'var(--fs-text)') + '">' + openDef + '</div></div>';
   html += '</div>';
 
   // tabs
@@ -5727,12 +5735,12 @@ function fsRenderTab() {
           '<textarea class="fsinput fsEquipField" data-key="' + fsEsc(k) + '" rows="1" style="flex:1">' + fsEsc(en.v || "") + '</textarea>' +
           '<button class="fsbtn fsEquipPhoto" data-key="' + fsEsc(k) + '" style="padding:8px 10px">&#128247;</button>' +
           (en.photo ? '<button class="fsbtn fsEquipPhotoDel" data-key="' + fsEsc(k) + '" style="padding:8px 10px;color:#c62828">&#128465;</button>' : '') +
-          '</div>' + (en.photo ? '<img src="' + en.photo + '" style="max-width:150px;max-height:100px;border-radius:8px;margin-top:6px">' : '');
+          '</div>' + (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:150px;max-height:100px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '');
       } else if (en.v || en.photo) {
         shown++;
         html += '<div style="display:flex;border-top:1px solid var(--fs-border);padding:11px 0;gap:10px"><div style="width:38%;color:var(--fs-sub);font-size:13.5px">' + k + '</div>' +
           '<div style="flex:1"><div style="font-weight:600;font-size:14px;white-space:pre-wrap">' + fsEsc(en.v || "") + '</div>' +
-          (en.photo ? '<img src="' + en.photo + '" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px">' : '') + '</div></div>';
+          (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '') + '</div></div>';
       }
     });
     // custom rows (Reece: own headings/items)
@@ -5744,12 +5752,12 @@ function fsRenderTab() {
           '<textarea class="fsinput fsEqCustField" data-i="' + i + '" rows="1" style="flex:1">' + fsEsc(en.v || "") + '</textarea>' +
           '<button class="fsbtn fsEqCustPhoto" data-i="' + i + '" style="padding:8px 10px">&#128247;</button>' +
           (en.photo ? '<button class="fsbtn fsEqCustPhotoDel" data-i="' + i + '" style="padding:8px 10px;color:#c62828">&#128465;</button>' : '') +
-          '</div>' + (en.photo ? '<img src="' + en.photo + '" style="max-width:150px;max-height:100px;border-radius:8px;margin-top:6px">' : '');
+          '</div>' + (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:150px;max-height:100px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '');
       } else if (en.v || en.photo) {
         shown++;
         html += '<div style="display:flex;border-top:1px solid var(--fs-border);padding:11px 0;gap:10px"><div style="width:38%;color:var(--fs-sub);font-size:13.5px">' + fsEsc(en.name) + '</div>' +
           '<div style="flex:1"><div style="font-weight:600;font-size:14px;white-space:pre-wrap">' + fsEsc(en.v || "") + '</div>' +
-          (en.photo ? '<img src="' + en.photo + '" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px">' : '') + '</div></div>';
+          (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '') + '</div></div>';
       }
     });
     if (fsEquipEdit) html += '<div style="margin-top:12px"><button class="fsbtn" id="fsEqCustAdd">&#65291; Add your own item</button></div>';
@@ -5810,7 +5818,7 @@ function fsRenderTab() {
     else {
       html += '<div style="display:flex;gap:10px;flex-wrap:wrap">';
       ph.forEach((p, i) => {
-        html += '<div style="position:relative"><img src="' + (p.src || p) + '" style="width:150px;height:110px;object-fit:cover;border-radius:10px">' +
+        html += '<div style="position:relative"><img src="' + (p.src || p) + '" class="fsPhotoView" style="width:150px;height:110px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">' +
           '<button class="fsbtn fsFileDel" data-i="' + i + '" style="position:absolute;top:4px;right:4px;padding:2px 8px;color:#c62828">&#10005;</button></div>';
       });
       html += '</div>';
@@ -5832,7 +5840,7 @@ function fsRenderTab() {
     const spAdd = document.getElementById("fsSitePhotoAdd");
     if (spAdd) spAdd.onclick = () => { fsPhotoTarget = { kind:"siteAdd" }; document.getElementById("fsPhotoInput").click(); };
     document.querySelectorAll(".fsSpTile").forEach(im => {
-      im.onclick = () => { fsPhotoTarget = { kind:"siteIdx", i:+im.dataset.i }; document.getElementById("fsPhotoInput").click(); };
+      im.onclick = () => fsViewPhoto(im.src, { kind:"siteIdx", i:+im.dataset.i });
     });
     document.querySelectorAll(".fsSpDel").forEach(b => {
       b.onclick = () => {
@@ -5969,6 +5977,11 @@ function fsRenderTab() {
       };
     });
   }
+
+  // any register photo opens the full-size viewer
+  document.querySelectorAll("#fsTabBody .fsPhotoView").forEach(im => {
+    im.onclick = () => fsViewPhoto(im.src);
+  });
 }
 function fsSaveEquipDraft() {
   document.querySelectorAll(".fsEquipField").forEach(f => {
@@ -5982,6 +5995,34 @@ function fsSaveEquipDraft() {
   });
 }
 
+/* ---------- register photo lightbox ---------- */
+let fsLbTarget = null;
+function fsViewPhoto(src, replaceTarget) {
+  fsLbTarget = replaceTarget || null;
+  const lb = document.getElementById("fsLightbox");
+  const im = document.getElementById("fsLbImg");
+  im.src = src;
+  im.style.maxWidth = "96vw"; im.style.maxHeight = "85vh"; im.style.cursor = "zoom-in";
+  document.getElementById("fsLbReplace").style.display = fsLbTarget ? "inline-block" : "none";
+  lb.style.display = "block";
+}
+function fsLbClose() { document.getElementById("fsLightbox").style.display = "none"; }
+document.getElementById("fsLbClose").onclick = fsLbClose;
+document.getElementById("fsLightbox").onclick = e => { if (e.target.id === "fsLightbox") fsLbClose(); };
+document.getElementById("fsLbImg").onclick = e => {
+  e.stopPropagation();
+  const im = e.target;
+  const big = im.style.maxWidth === "none";
+  im.style.maxWidth = big ? "96vw" : "none";
+  im.style.maxHeight = big ? "85vh" : "none";
+  im.style.cursor = big ? "zoom-in" : "zoom-out";
+};
+document.getElementById("fsLbReplace").onclick = e => {
+  e.stopPropagation();
+  fsLbClose();
+  if (fsLbTarget) { fsPhotoTarget = fsLbTarget; document.getElementById("fsPhotoInput").click(); }
+};
+
 /* shared photo intake (downscaled) */
 document.getElementById("fsPhotoInput").addEventListener("change", e => {
   const f = e.target.files && e.target.files[0];
@@ -5991,12 +6032,12 @@ document.getElementById("fsPhotoInput").addEventListener("change", e => {
   reader.onload = () => {
     const im = new Image();
     im.onload = () => {
-      const mx = 900;
+      const mx = 1600;
       const sc = Math.min(1, mx / Math.max(im.naturalWidth, im.naturalHeight));
       const c = document.createElement("canvas");
       c.width = Math.round(im.naturalWidth * sc); c.height = Math.round(im.naturalHeight * sc);
       c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
-      const src = c.toDataURL("image/jpeg", 0.8);
+      const src = c.toDataURL("image/jpeg", 0.82);
       if (fsPhotoTarget.kind === "site") fsSite.photo = src;
       else if (fsPhotoTarget.kind === "siteAdd") {
         if (!fsSite.photo) fsSite.photo = src;
