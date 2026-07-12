@@ -156,9 +156,11 @@
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
       <span style="font-size:21px;font-weight:800;color:#c8340f;display:inline-flex;align-items:center;gap:8px"><img src="icon-192.png" style="width:26px;height:26px;border-radius:6px" alt=""> FIRESPARK</span>
-      <span style="font-size:11px;color:#7c8a91">v0.10 beta</span>
+      <span style="font-size:11px;color:#7c8a91">v0.11 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsThemeBtn" title="Light / dark">&#127765;</button>
+      <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
+      <button class="fsbtn" id="fsBackupsBtn" title="Register backups kept on this device">&#128336;</button>
       <button class="fsbtn" id="fsExportReg" style="display:none">&#128190; Export register</button>
     </div>
     <div id="fsRegStamp" style="font-size:11.5px;color:#7c8a91;margin-bottom:16px"></div>
@@ -196,7 +198,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.10 beta</span></span>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.11 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -450,6 +452,11 @@
 <div class="modal" id="fsBinModal">
   <div class="modalbox" style="max-width:560px;width:94vw;max-height:80vh;overflow-y:auto;text-align:left">
     <div id="fsBinBody"></div>
+  </div>
+</div>
+<div class="modal" id="fsBakModal" style="z-index:120">
+  <div class="modalbox" style="max-width:560px;width:94vw;max-height:80vh;overflow-y:auto;text-align:left">
+    <div id="fsBakBody"></div>
   </div>
 </div>
 <div id="testCounter"></div>
@@ -4376,9 +4383,19 @@ function fsEnsureIds() {
 /* Map old register fields{} / panelInstructions / additionalInfo into the new
    Access / Contacts / Further info / Site Equipment fields. Originals are kept. */
 function fsMigrateLegacy(s) {
-  if (s._migr >= 2) return false;
-  s._migr = 2;
+  if (s._migr >= 3) return false;
+  s._migr = 3;
   let changed = false;
+  // photos from the old site-register app are {label, data:dataURL} — convert to {src, label}
+  if (Array.isArray(s.photos) && s.photos.some(p => p && typeof p === "object" && p.data)) {
+    s.photos = s.photos.map(p => (p && typeof p === "object" && p.data) ? { src: p.data, label: p.label || "" } : p)
+      .filter(p => (typeof p === "string" && p) || (p && p.src));
+    changed = true;
+  }
+  if (!s.photo) {
+    const si = (s.photos || []).find(p => p && p.src && /site\s*(image|photo)/i.test(p.label || ""));
+    if (si) { s.photo = si.src; changed = true; }
+  }
   // clean junk lines written by the v1 migration when fields was a list ("0: [object Object]")
   ["access", "contacts", "furtherInfo"].forEach(prop => {
     if (typeof s[prop] === "string" && s[prop].includes("[object Object]")) {
@@ -4450,7 +4467,9 @@ function fsStamp() {
     (fsRegister.updated ? " · updated " + fsRegister.updated : "") +
     (fsRegister.savedBy ? " by " + fsRegister.savedBy : "") +
     (fsDirty ? " · UNSAVED CHANGES — export when done" : "");
-  document.getElementById("fsExportReg").style.display = fsRegister ? "inline-block" : "none";
+  const ex = document.getElementById("fsExportReg");
+  ex.style.display = fsRegister ? "inline-block" : "none";
+  ex.innerHTML = "&#128190; " + ((typeof fsRegFileHandle !== "undefined" && fsRegFileHandle) ? "Save register" : "Export register");
 }
 
 function fsCycleStatus(site, cyc) {
@@ -4800,16 +4819,69 @@ document.getElementById("fsPhotoInput").addEventListener("change", e => {
 });
 
 /* ---------- register load / save ---------- */
+let fsRegFileHandle = null;
 function fsLoadRegister(objIn) {
   fsRegister = objIn;
   fsEnsureIds();
   fsDirty = false;
-  idbPut("fsRegister", fsRegister).catch(() => {});
+  idbPut("fsRegister", fsRegister).catch(() => alert("⚠ Couldn't cache the register on this device (storage full?) — it will need reloading next time."));
+  fsBackupSnapshot("loaded");
   fsStamp();
   fsRenderClients();
   fsShow("fsClientsView");
 }
-document.getElementById("fsImportBtn").onclick = () => document.getElementById("fsRegInput").click();
+async function fsPickRegister() {
+  if (fsDirty && !confirm("You have UNSAVED register changes — loading a file will replace them. Continue?")) return;
+  if (window.showOpenFilePicker) {
+    try {
+      const [h] = await window.showOpenFilePicker({ types:[{ description:"FireSpark register", accept:{ "application/json":[".json"] } }] });
+      const f = await h.getFile();
+      const d = JSON.parse(await f.text());
+      if (!d.clients) { alert("That file doesn't look like a client register."); return; }
+      fsRegFileHandle = h;
+      fsLoadRegister(d);
+      return;
+    } catch (e) { if (e && (e.name === "AbortError" || e.name === "NotAllowedError")) return; }
+  }
+  document.getElementById("fsRegInput").click();
+}
+document.getElementById("fsImportBtn").onclick = fsPickRegister;
+document.getElementById("fsLoadRegBtn").onclick = fsPickRegister;
+
+/* register backups — last 5 snapshots kept in this device's storage */
+async function fsBackupSnapshot(why) {
+  if (!fsRegister) return;
+  try {
+    const list = (await idbGet("fsRegBackups")) || [];
+    list.unshift({ t: Date.now(), why: why || "", savedBy: fsRegister.savedBy || "", json: JSON.stringify(fsRegister) });
+    while (list.length > 5) list.pop();
+    await idbPut("fsRegBackups", list);
+  } catch (e) {}
+}
+document.getElementById("fsBackupsBtn").onclick = async () => {
+  const list = (await idbGet("fsRegBackups").catch(() => null)) || [];
+  const box = document.getElementById("fsBakBody");
+  let html = '<h3 style="margin-bottom:8px">Register backups (this device)</h3>';
+  html += '<div style="font-size:12.5px;color:var(--fs-sub);margin-bottom:10px">A snapshot is kept automatically every time you load or save the register (last 5). Restoring makes it the working register — Save/Export afterwards to keep it.</div>';
+  if (!list.length) html += '<div style="color:var(--fs-faint)">No backups yet.</div>';
+  list.forEach((b, i) => {
+    html += '<div style="border-top:1px solid var(--fs-border);padding:9px 0;display:flex;gap:10px;align-items:center">' +
+      '<div style="flex:1;font-size:13.5px"><b>' + new Date(b.t).toLocaleString() + '</b>' +
+      '<div style="font-size:12px;color:var(--fs-sub2)">' + fsEsc(b.why) + (b.savedBy ? ' · ' + fsEsc(b.savedBy) : '') + ' · ' + Math.round(b.json.length / 1024) + ' KB</div></div>' +
+      '<button class="fsbtn fsBakRestore" data-i="' + i + '" style="color:#1b8a3f;font-weight:700">Restore</button></div>';
+  });
+  html += '<div style="margin-top:12px;text-align:right"><button class="fsbtn" id="fsBakClose">Close</button></div>';
+  box.innerHTML = html;
+  document.getElementById("fsBakModal").classList.add("show");
+  document.getElementById("fsBakClose").onclick = () => document.getElementById("fsBakModal").classList.remove("show");
+  document.querySelectorAll(".fsBakRestore").forEach(btn => btn.onclick = () => {
+    const b = list[+btn.dataset.i];
+    if (!b || !confirm("Restore the register backup from " + new Date(b.t).toLocaleString() + "? Current in-app register is replaced (a backup of it is kept).")) return;
+    document.getElementById("fsBakModal").classList.remove("show");
+    fsLoadRegister(JSON.parse(b.json));
+    fsDirty = true; fsStamp();
+  });
+};
 document.getElementById("fsRegInput").addEventListener("change", e => {
   const f = e.target.files && e.target.files[0];
   e.target.value = "";
@@ -4836,7 +4908,7 @@ document.getElementById("fsDemoBtn").onclick = () => {
     ]}]
   });
 };
-document.getElementById("fsExportReg").onclick = () => {
+document.getElementById("fsExportReg").onclick = async () => {
   if (!fsRegister) return;
   let who = "";
   try { who = localStorage.getItem("fs-user") || ""; } catch (e) {}
@@ -4846,9 +4918,22 @@ document.getElementById("fsExportReg").onclick = () => {
   }
   fsRegister.updated = new Date().toISOString().slice(0, 10);
   fsRegister.savedBy = who;
+  const json = JSON.stringify(fsRegister);
+  await fsBackupSnapshot("saved");
+  if (fsRegFileHandle) {
+    try {
+      const w = await fsRegFileHandle.createWritable();
+      await w.write(json);
+      await w.close();
+      fsDirty = false;
+      fsStamp();
+      alert("✓ Saved over " + fsRegFileHandle.name + " (backup kept on this device).");
+      return;
+    } catch (e) { alert("Couldn't write to the original file (" + e.name + ") — exporting a copy instead."); }
+  }
   fsDirty = false;
   fsStamp();
-  deliverFile(new Blob([JSON.stringify(fsRegister)], { type:"application/json" }),
+  deliverFile(new Blob([json], { type:"application/json" }),
     "firespark-register-" + fsRegister.updated + ".json", "application/json");
 };
 document.getElementById("fsThemeBtn").onclick = () => {
@@ -5489,6 +5574,7 @@ function fsTestPdf(rec) {
 }
 
 (async () => {
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
   try {
     const cached = await idbGet("fsRegister");
     if (cached && cached.clients) {
