@@ -159,7 +159,7 @@
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
       <span style="font-size:21px;font-weight:800;color:#c8340f;display:inline-flex;align-items:center;gap:8px"><img src="icon-192.png" style="width:26px;height:26px;border-radius:6px" alt=""> FIRESPARK</span>
-      <span style="font-size:11px;color:#7c8a91">v0.15 beta</span>
+      <span style="font-size:11px;color:#7c8a91">v0.16 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsThemeBtn" title="Light / dark">&#127765;</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -201,7 +201,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.15 beta</span></span>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.16 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -2003,12 +2003,27 @@ function updateStatus() {
   if (!img) { statusEl.textContent = "No plan loaded"; return; }
   const syms = objects.filter(o => o.kind === "sym").length;
   const marks = objects.length - syms;
-  let s = syms + " devices · " + marks + " markups · zoom " + Math.round(view.scale * 100) + "%";
+  const multi = levels.length > 1;
+  let siteTypeCounts = null;
+  let s;
+  if (multi) {
+    // one site across all levels — status + palette counts cover the whole project
+    syncLevel();
+    siteTypeCounts = {};
+    let sAll = 0, mAll = 0;
+    levels.forEach(lv => (lv.objects || []).forEach(o => {
+      if (o.kind === "sym") { sAll++; siteTypeCounts[o.type] = (siteTypeCounts[o.type] || 0) + 1; }
+      else mAll++;
+    }));
+    s = sAll + " devices · " + mAll + " markups on site (this level " + syms + " · " + marks + ") · zoom " + Math.round(view.scale * 100) + "%";
+  } else {
+    s = syms + " devices · " + marks + " markups · zoom " + Math.round(view.scale * 100) + "%";
+  }
   if (selection.length > 1) s = selection.length + " selected · " + s;
   if (lastSaveNote) s += " · " + lastSaveNote;
   statusEl.textContent = s;
   TYPES.forEach(t => {
-    const n = objects.filter(o => o.kind === "sym" && o.type === t.id).length;
+    const n = multi ? (siteTypeCounts[t.id] || 0) : objects.filter(o => o.kind === "sym" && o.type === t.id).length;
     const el = document.getElementById("cnt-" + t.id);
     if (el) el.textContent = n > 0 ? n : "";
   });
@@ -2720,9 +2735,22 @@ function updateTestCounter() {
     const tb = document.getElementById("topbar");
     el.style.top = (document.body.classList.contains("focusmode") ? 0 : (tb ? tb.offsetHeight : 44)) + "px";
   }
-  const syms = objects.filter(o => o.kind === "sym" && o.type !== "campin");
+  const inScope = o => o.kind === "sym" && o.type !== "campin";
+  const syms = objects.filter(inScope);
   const done = syms.filter(o => (o.ty || []).includes(+testYearSel)).length;
-  el.textContent = "\u2713 " + done + " / " + syms.length + " tested (" + testYearSel + (levels.length > 1 ? ", this level" : "") + ")";
+  if (levels.length > 1) {
+    // one site, one test - the counter covers every level
+    syncLevel();
+    let sAll = 0, dAll = 0;
+    levels.forEach(lv => (lv.objects || []).forEach(o => {
+      if (!inScope(o)) return;
+      sAll++;
+      if ((o.ty || []).includes(+testYearSel)) dAll++;
+    }));
+    el.textContent = "\u2713 " + dAll + " / " + sAll + " tested (" + testYearSel + ", whole site) \u00b7 " + done + " / " + syms.length + " this level";
+  } else {
+    el.textContent = "\u2713 " + done + " / " + syms.length + " tested (" + testYearSel + ")";
+  }
   el.style.display = "block";
 }
 function setTool(id) {
@@ -4827,7 +4855,7 @@ function reportLines() {
   lvList.forEach(lv => {
     const objs = lv.objects || [];
     lines.push(["h2", multiLevel ? ("Devices by zone — " + lv.name) : "Devices by zone"]);
-    const zones = zoneCounts(objs);
+    const zones = zoneCounts(objs.filter(o => !(o.kind === "sym" && o.type === "campin")));
     const zoneKeys = Object.keys(zones).sort((a, b) => a.localeCompare(b, undefined, { numeric:true }));
     if (!zoneKeys.length) lines.push(["t", "No devices"]);
     zoneKeys.forEach(z => {
@@ -4838,15 +4866,17 @@ function reportLines() {
     });
   });
   const totals = {};
-  let grand = 0;
+  let grand = 0, pins = 0;
   all.forEach(({ o }) => {
     if (o.kind !== "sym") return;
+    if (o.type === "campin") { pins++; return; }   // photo pins aren't devices
     totals[o.type] = (totals[o.type] || 0) + 1;
     grand++;
   });
   lines.push(["h2", multiLevel ? "Totals (all levels)" : "Totals"]);
   Object.entries(totals).forEach(([ty, n]) => lines.push(["t", (TYPE_MAP[ty] ? TYPE_MAP[ty].label : ty) + " × " + n]));
   lines.push(["b", "All devices: " + grand]);
+  if (pins) lines.push(["t", "Photo pins × " + pins]);
   const failed = all.filter(({ o }) => o.kind === "sym" && o.failed);
   lines.push(["h2", "Failed items (" + failed.length + ")"]);
   if (!failed.length) lines.push(["t", "None recorded"]);
@@ -4863,10 +4893,10 @@ function reportLines() {
   });
   lines.push(["h2", "Testing"]);
   [2026, 2027, 2028, 2029].forEach(y => {
-    const n = all.filter(({ o }) => o.kind === "sym" && (o.ty || []).includes(y)).length;
+    const n = all.filter(({ o }) => o.kind === "sym" && o.type !== "campin" && (o.ty || []).includes(y)).length;
     if (n) lines.push(["t", "Tested " + y + ": " + n + " devices"]);
   });
-  const untested = all.filter(({ o }) => o.kind === "sym" && !(o.ty || []).length).length;
+  const untested = all.filter(({ o }) => o.kind === "sym" && o.type !== "campin" && !(o.ty || []).length).length;
   lines.push(["t", "No test year recorded: " + untested]);
   if (siteNotes.trim()) {
     lines.push(["h2", "Site notes"]);
@@ -5816,7 +5846,7 @@ function fsRenderTab() {
 
   if (fsTab === "buildings") {
     document.getElementById("fsBldAdd").onclick = () => {
-      const nm = prompt("Building name (e.g. Main Block, Ward 3, The Lodge):");
+      const nm = prompt("Building name (e.g. Main Block, Ward 3, Workshop):");
       if (!nm || !nm.trim()) return;
       s.buildings = s.buildings || [];
       let n = s.buildings.length;
@@ -6432,7 +6462,7 @@ function fsFinishTest() {
   if (!confirm("Finish and record this " + def.label + " test?")) return;
 
   const yr = +testYearSel;
-  const devAll = allLevelObjects().filter(e => e.o.kind === "sym");
+  const devAll = allLevelObjects().filter(e => e.o.kind === "sym" && e.o.type !== "campin");
   const tested = devAll.filter(e => (e.o.ty || []).includes(yr)).length;
   const failedDev = devAll.filter(e => e.o.failed).map(e => ({
     type: (TYPE_MAP[e.o.type] || {}).label || e.o.type,
