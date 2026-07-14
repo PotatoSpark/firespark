@@ -160,7 +160,7 @@
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
       <span style="font-size:21px;font-weight:800;color:#c8340f;display:inline-flex;align-items:center;gap:8px"><img src="icon-192.png" style="width:26px;height:26px;border-radius:6px" alt=""> FIRESPARK</span>
-      <span style="font-size:11px;color:#7c8a91">v0.19 beta</span>
+      <span style="font-size:11px;color:#7c8a91">v0.20 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsThemeBtn" title="Light / dark">&#127765;</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -210,7 +210,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.19 beta</span></span>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.20 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -3184,7 +3184,7 @@ function canShareFile(file) {
 function deliverFile(blob, name, mime) {
   const file = new File([blob], name, { type: mime });
   if (canShareFile(file)) {
-    navigator.share({ files: [file], title: name }).catch(() => {});
+    navigator.share({ files: [file] }).catch(() => {});   // no title: iOS saves it as a stray .txt beside the file
     return;
   }
   const url = URL.createObjectURL(blob);
@@ -3241,7 +3241,12 @@ async function saveProject() {
       }
     }
   }
-  deliverFile(projectBlob(), name, "application/json");
+  // iPad / share-sheet path: let the user name the file (share sheet offers no rename)
+  let nm = prompt("File name for the project:", name);
+  if (nm === null) return;
+  nm = nm.trim() || name;
+  if (!/\.json$/i.test(nm)) nm += ".json";
+  deliverFile(projectBlob(), nm, "application/json");
   noteSaved("Exported");
 }
 document.getElementById("btnSaveProj").onclick = saveProject;
@@ -5382,10 +5387,10 @@ const FS_CYCLES = [
   { key:"last5y",      label:"5 yearly",  months:60 }
 ];
 const FS_EQUIP_FIELDS = [
-  "Panel location", "Panel type", "Panel battery type / size", "Panel instructions", "EWIS location", "EWIS type",
+  "Panel location", "Panel type", "Panel battery type / size", "Panel instructions", "Detectors", "EWIS location", "EWIS type",
   "OWS / speaker notes", "Fire extinguisher locations", "Fire extinguisher type", "Fire doors", "Hose reel locations",
   "Hydrant / booster location", "Pump room location", "Sprinkler valve room",
-  "Emergency lighting notes", "Gas suppression", "Other equipment"
+  "Exit lights", "Emergency lights", "Gas suppression", "Other equipment"
 ];
 
 function fsShow(view) {
@@ -5412,10 +5417,12 @@ function fsEnsureIds() {
 /* Map old register fields{} / panelInstructions / additionalInfo into the new
    Access / Contacts / Further info / Site Equipment fields. Originals are kept. */
 function fsMigrateLegacy(s) {
-  if (s._migr >= 5) return false;
+  if (s._migr >= 6) return false;
+  const wasV5 = s._migr >= 5;
   const wasV4 = s._migr >= 4;
-  s._migr = 5;
+  s._migr = 6;
   let changed = false;
+  if (wasV5) return fsMigrV6(s);   // already fully migrated to v5 — only the v6 checkbox step is new
   // v5: earlier migrations put "Extinguisher Type" under locations and panelInstructions in Further info — relocate
   if (wasV4) {
     let pairs5 = [];
@@ -5512,13 +5519,37 @@ function fsMigrateLegacy(s) {
     if (/hydrant|booster/.test(lk)) return eq("Hydrant / booster location", "", v);
     if (/pump/.test(lk)) return eq("Pump room location", "", v);
     if (/sprinkler|valve/.test(lk)) return eq("Sprinkler valve room", "", v);
-    if (/light/.test(lk)) return eq("Emergency lighting notes", k, v);
+    if (/exit.*light|exit.*sign/.test(lk)) return eq("Exit lights", k, v);
+    if (/light/.test(lk)) return eq("Emergency lights", k, v);
     if (/gas|suppress/.test(lk)) return eq("Gas suppression", k, v);
     if (/panel|fip/.test(lk)) return eq("Panel location", k, v);
     app("furtherInfo", k, v);
   });
   if (s.panelInstructions) eq("Panel instructions", "", s.panelInstructions);
   if (s.additionalInfo) app("furtherInfo", "", s.additionalInfo);
+  if (fsMigrV6(s)) changed = true;
+  return changed;
+}
+/* v6: equipment items are checkbox-driven — en.on marks an item as present on site.
+   Existing values/photos imply present; a bare "Yes" was only a presence marker, so clear it.
+   "Emergency lighting notes" renamed to "Emergency lights". */
+function fsMigrV6(s) {
+  let changed = false;
+  s.equipment = s.equipment || {};
+  const eln = s.equipment["Emergency lighting notes"];
+  if (eln && !s.equipment["Emergency lights"]) {
+    s.equipment["Emergency lights"] = eln;
+    delete s.equipment["Emergency lighting notes"];
+    changed = true;
+  }
+  const flag = en => {
+    if (!en || typeof en !== "object") return;
+    const hasV = typeof en.v === "string" && en.v.trim() !== "";
+    if ((hasV || en.photo) && !en.on) { en.on = true; changed = true; }
+    if (hasV && /^(yes|y)\.?$/i.test(en.v.trim())) { en.v = ""; changed = true; }
+  };
+  Object.values(s.equipment).forEach(flag);
+  (s.equipCustom || []).forEach(flag);
   return changed;
 }
 function fsMarkDirty() { fsDirty = true; fsStamp(); idbPut("fsRegister", fsRegister).catch(() => {}); }
@@ -5604,6 +5635,8 @@ function fsInfoPhotoHtml() {
       html += '<div style="display:flex;border-top:1px solid var(--fs-border);padding:11px 0"><div style="width:38%;color:var(--fs-sub);font-size:13.5px">' + label + '</div><div style="flex:1;font-weight:600;font-size:14px;white-space:pre-wrap">' + fsEsc(s[key]) + '</div></div>';
     }
   });
+  if (fsInfoEdit) html += '<div class="fslabel">Google Maps link (Maps &rarr; Share &rarr; Copy link) &mdash; adds an "Open in maps" button next to Open Site Workspace</div>' +
+    '<input class="fsinput fsInfoField" data-key="mapUrl" type="url" placeholder="https://maps.app.goo.gl/..." value="' + fsEsc(s.mapUrl || "") + '">';
   if (!fsInfoEdit && !infoRows.some(([l, k]) => s[k])) html += '<div style="color:var(--fs-faint);font-size:13px">Nothing recorded yet — tap Edit.</div>';
   html += '</div>';
 
@@ -5732,36 +5765,43 @@ function fsRenderTab() {
     html += '<div class="fscard" style="padding:20px">';
     html += '<div style="display:flex;align-items:center;margin-bottom:8px"><h3 style="font-size:16px;font-weight:700;flex:1">Site equipment</h3><a id="fsEquipEditBtn" style="color:var(--fs-accent);font-weight:700;cursor:pointer">' + (fsEquipEdit ? 'Save' : 'Edit') + '</a></div>';
     let shown = 0;
+    if (fsEquipEdit) html += '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:6px">Tick what the site has — ticked items show on the Overview. Details and photos are optional.</div>';
     FS_EQUIP_FIELDS.forEach(k => {
       const en = s.equipment[k] || {};
       if (fsEquipEdit) {
-        html += '<div class="fslabel">' + k + '</div><div style="display:flex;gap:8px;align-items:flex-start">' +
-          '<textarea class="fsinput fsEquipField" data-key="' + fsEsc(k) + '" rows="1" style="flex:1">' + fsEsc(en.v || "") + '</textarea>' +
-          '<button class="fsbtn fsEquipPhoto" data-key="' + fsEsc(k) + '" style="padding:8px 10px">&#128247;</button>' +
-          (en.photo ? '<button class="fsbtn fsEquipPhotoDel" data-key="' + fsEsc(k) + '" style="padding:8px 10px;color:#c62828">&#128465;</button>' : '') +
-          '</div>' + (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:150px;max-height:100px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '');
-      } else if (en.v || en.photo) {
+        html += '<div style="display:flex;align-items:center;gap:9px;border-top:1px solid var(--fs-border);padding:9px 0 2px">' +
+          '<input type="checkbox" class="fsEquipOn" data-key="' + fsEsc(k) + '"' + (en.on ? ' checked' : '') + ' style="width:19px;height:19px;accent-color:var(--fs-accent);flex:0 0 auto">' +
+          '<div style="flex:1;font-weight:700;font-size:14px">' + k + '</div>' +
+          '<button class="fsbtn fsEquipPhoto" data-key="' + fsEsc(k) + '" style="padding:6px 9px">&#128247;</button>' +
+          (en.photo ? '<button class="fsbtn fsEquipPhotoDel" data-key="' + fsEsc(k) + '" style="padding:6px 9px;color:#c62828">&#128465;</button>' : '') +
+          '</div>' +
+          '<textarea class="fsinput fsEquipField" data-key="' + fsEsc(k) + '" rows="1" placeholder="Details (optional)" style="margin:4px 0 6px">' + fsEsc(en.v || "") + '</textarea>' +
+          (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:150px;max-height:100px;border-radius:8px;margin-bottom:6px;cursor:pointer" title="Tap to view full size">' : '');
+      } else if (en.on || en.v || en.photo) {
         shown++;
-        html += '<div style="display:flex;border-top:1px solid var(--fs-border);padding:11px 0;gap:10px"><div style="width:38%;color:var(--fs-sub);font-size:13.5px">' + k + '</div>' +
-          '<div style="flex:1"><div style="font-weight:600;font-size:14px;white-space:pre-wrap">' + fsEsc(en.v || "") + '</div>' +
-          (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '') + '</div></div>';
+        html += '<div style="border-top:1px solid var(--fs-border);padding:11px 0">' +
+          '<div style="font-weight:700;font-size:14.5px"><span style="color:#1b8a3f">&#10003;</span> ' + k + '</div>' +
+          (en.v ? '<div style="font-size:13.5px;color:var(--fs-sub);white-space:pre-wrap;margin-top:3px">' + fsEsc(en.v) + '</div>' : '') +
+          (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '') + '</div>';
       }
     });
     // custom rows (Reece: own headings/items)
     (s.equipCustom || []).forEach((en, i) => {
       if (fsEquipEdit) {
-        html += '<div class="fslabel" style="display:flex;align-items:center;gap:8px">' + fsEsc(en.name) +
-          '<a class="fsEqCustDel" data-i="' + i + '" style="color:#c62828;cursor:pointer;font-size:12px">remove row</a></div>' +
-          '<div style="display:flex;gap:8px;align-items:flex-start">' +
-          '<textarea class="fsinput fsEqCustField" data-i="' + i + '" rows="1" style="flex:1">' + fsEsc(en.v || "") + '</textarea>' +
-          '<button class="fsbtn fsEqCustPhoto" data-i="' + i + '" style="padding:8px 10px">&#128247;</button>' +
-          (en.photo ? '<button class="fsbtn fsEqCustPhotoDel" data-i="' + i + '" style="padding:8px 10px;color:#c62828">&#128465;</button>' : '') +
-          '</div>' + (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:150px;max-height:100px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '');
-      } else if (en.v || en.photo) {
+        html += '<div style="display:flex;align-items:center;gap:9px;border-top:1px solid var(--fs-border);padding:9px 0 2px">' +
+          '<input type="checkbox" class="fsEqCustOn" data-i="' + i + '"' + (en.on ? ' checked' : '') + ' style="width:19px;height:19px;accent-color:var(--fs-accent);flex:0 0 auto">' +
+          '<div style="flex:1;font-weight:700;font-size:14px">' + fsEsc(en.name) + ' <a class="fsEqCustDel" data-i="' + i + '" style="color:#c62828;cursor:pointer;font-size:12px;font-weight:400">remove row</a></div>' +
+          '<button class="fsbtn fsEqCustPhoto" data-i="' + i + '" style="padding:6px 9px">&#128247;</button>' +
+          (en.photo ? '<button class="fsbtn fsEqCustPhotoDel" data-i="' + i + '" style="padding:6px 9px;color:#c62828">&#128465;</button>' : '') +
+          '</div>' +
+          '<textarea class="fsinput fsEqCustField" data-i="' + i + '" rows="1" placeholder="Details (optional)" style="margin:4px 0 6px">' + fsEsc(en.v || "") + '</textarea>' +
+          (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:150px;max-height:100px;border-radius:8px;margin-bottom:6px;cursor:pointer" title="Tap to view full size">' : '');
+      } else if (en.on || en.v || en.photo) {
         shown++;
-        html += '<div style="display:flex;border-top:1px solid var(--fs-border);padding:11px 0;gap:10px"><div style="width:38%;color:var(--fs-sub);font-size:13.5px">' + fsEsc(en.name) + '</div>' +
-          '<div style="flex:1"><div style="font-weight:600;font-size:14px;white-space:pre-wrap">' + fsEsc(en.v || "") + '</div>' +
-          (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '') + '</div></div>';
+        html += '<div style="border-top:1px solid var(--fs-border);padding:11px 0">' +
+          '<div style="font-weight:700;font-size:14.5px"><span style="color:#1b8a3f">&#10003;</span> ' + fsEsc(en.name) + '</div>' +
+          (en.v ? '<div style="font-size:13.5px;color:var(--fs-sub);white-space:pre-wrap;margin-top:3px">' + fsEsc(en.v) + '</div>' : '') +
+          (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '') + '</div>';
       }
     });
     if (fsEquipEdit) html += '<div style="margin-top:12px"><button class="fsbtn" id="fsEqCustAdd">&#65291; Add your own item</button></div>';
@@ -5788,7 +5828,9 @@ function fsRenderTab() {
       if ((r.ews5 || []).length) { html += 'EWS records: ' + r.ews5.length + ' amp zone' + (r.ews5.length > 1 ? 's' : '') + ' (CIS / SPL / Z — see PDF)<br>'; }
       if (r.obs) html += 'Obs: ' + fsEsc(r.obs) + '<br>';
       html += '<span style="color:var(--fs-faint)">' + fsEsc(r.ref || '') + ' &middot; started ' + fsEsc((r.started || '').slice(0, 16).replace('T', ' ')) + '</span>';
-      html += '<div style="margin-top:6px"><button class="fsbtn fsHistPdf" data-id="' + fsEsc(r.id || '') + '" style="font-weight:700">&#128196; Save PDF</button></div>';
+      html += '<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button class="fsbtn fsHistPdf" data-id="' + fsEsc(r.id || '') + '" style="font-weight:700">&#128196; Save PDF</button>' +
+        '<button class="fsbtn fsHistEdit" data-id="' + fsEsc(r.id || '') + '">&#9998; Edit</button>' +
+        '<button class="fsbtn fsHistDel" data-id="' + fsEsc(r.id || '') + '" style="color:#c62828">&#128465; Delete</button></div>';
       html += '</div></details>';
     });
     html += '</div>';
@@ -5837,8 +5879,11 @@ function fsRenderTab() {
       if (fsInfoEdit) {
         document.querySelectorAll(".fsInfoField").forEach(f => { s[f.dataset.key] = f.value.trim(); });
         fsMarkDirty();
+        fsInfoEdit = false;
+        fsRenderSite();   // full re-render so the header "Open in maps" button appears/disappears
+        return;
       }
-      fsInfoEdit = !fsInfoEdit;
+      fsInfoEdit = true;
       fsRenderTab();
     };
     const spAdd = document.getElementById("fsSitePhotoAdd");
@@ -5902,6 +5947,39 @@ function fsRenderTab() {
       const rec = (s.history || []).find(x => x.id === b.dataset.id);
       if (rec) fsTestPdf(rec);
     });
+    document.querySelectorAll(".fsHistEdit").forEach(b => b.onclick = () => {
+      const rec = (s.history || []).find(x => x.id === b.dataset.id);
+      if (!rec) return;
+      const tech = prompt("Technician:", rec.tech || "");
+      if (tech === null) return;
+      const obs = prompt("Observations / comments:", rec.obs || "");
+      if (obs === null) return;
+      rec.tech = tech.trim();
+      rec.obs = obs.trim();
+      fsMarkDirty();
+      fsRenderTab();
+    });
+    document.querySelectorAll(".fsHistDel").forEach(b => b.onclick = () => {
+      const i = (s.history || []).findIndex(x => x.id === b.dataset.id);
+      if (i < 0) return;
+      const rec = s.history[i];
+      if (!confirm("Delete this " + (rec.label || rec.mode) + " test record from " + ((rec.finished || "").slice(0, 10)) + "?\nThis cannot be undone.")) return;
+      s.history.splice(i, 1);
+      // open defects this test raised — offer to remove them too (trial runs)
+      const raised = (s.defects || []).filter(d => !d.closed && d.created === rec.finished);
+      if (raised.length && confirm("Also delete " + raised.length + " open defect" + (raised.length > 1 ? "s" : "") + " raised by this test?")) {
+        s.defects = s.defects.filter(d => !raised.includes(d));
+      }
+      // roll back the cycle "last done" date if this record was the one that set it
+      const map = { monthly: "lastMonthly", sixMonthly: "last6m", annual: "lastAnnual", fiveYearly: "last5y" };
+      const key = map[rec.mode];
+      if (key && s.testing && s.testing[key] === (rec.finished || "").slice(0, 10)) {
+        const rest = s.history.filter(r => r.mode === rec.mode).map(r => (r.finished || "").slice(0, 10)).sort().reverse();
+        s.testing[key] = rest[0] || "";
+      }
+      fsMarkDirty();
+      fsRenderSite();
+    });
     const yb = document.getElementById("fsYearPdfBtn");
     if (yb) yb.onclick = () => {
       const years = [...new Set((s.history || []).map(fsRecYear).filter(Boolean))].sort().reverse();
@@ -5951,7 +6029,7 @@ function fsRenderTab() {
       if (!nm || !nm.trim()) return;
       fsSaveEquipDraft();
       fsSite.equipCustom = fsSite.equipCustom || [];
-      fsSite.equipCustom.push({ name: nm.trim(), v: "" });
+      fsSite.equipCustom.push({ name: nm.trim(), v: "", on: true });
       fsMarkDirty();
       fsRenderTab();
     };
@@ -6001,9 +6079,18 @@ function fsSaveEquipDraft() {
     fsSite.equipment[k] = fsSite.equipment[k] || {};
     fsSite.equipment[k].v = f.value.trim();
   });
+  document.querySelectorAll(".fsEquipOn").forEach(cb => {
+    const k = cb.dataset.key;
+    fsSite.equipment[k] = fsSite.equipment[k] || {};
+    fsSite.equipment[k].on = cb.checked;
+  });
   document.querySelectorAll(".fsEqCustField").forEach(f => {
     const en = (fsSite.equipCustom || [])[+f.dataset.i];
     if (en) en.v = f.value.trim();
+  });
+  document.querySelectorAll(".fsEqCustOn").forEach(cb => {
+    const en = (fsSite.equipCustom || [])[+cb.dataset.i];
+    if (en) en.on = cb.checked;
   });
 }
 
@@ -6058,11 +6145,13 @@ document.getElementById("fsPhotoInput").addEventListener("change", e => {
         if (fsPhotoTarget.i === 0) fsSite.photo = src;
         else { fsSite.photoExtra = fsSite.photoExtra || []; fsSite.photoExtra[fsPhotoTarget.i - 1] = src; }
       } else if (fsPhotoTarget.kind === "equipCustom") {
+        if ((fsSite.equipCustom || [])[fsPhotoTarget.i]) fsSite.equipCustom[fsPhotoTarget.i].on = true;   // adding a photo means the item exists
         fsSite.equipCustom = fsSite.equipCustom || [];
         if (fsSite.equipCustom[fsPhotoTarget.i]) fsSite.equipCustom[fsPhotoTarget.i].photo = src;
       } else if (fsPhotoTarget.kind === "equip") {
         fsSite.equipment[fsPhotoTarget.key] = fsSite.equipment[fsPhotoTarget.key] || {};
         fsSite.equipment[fsPhotoTarget.key].photo = src;
+        fsSite.equipment[fsPhotoTarget.key].on = true;   // adding a photo means the item exists
       } else if (fsPhotoTarget.kind === "files") {
         fsSite.photos = fsSite.photos || [];
         fsSite.photos.push({ src:src, t:Date.now() });
@@ -6428,6 +6517,14 @@ function fsRenderTest() {
     });
     html += '<div style="display:flex;gap:8px;margin:6px 0 2px"><button class="btn" id="fsSplAdd" style="font-size:13px">+ Add row</button><button class="btn" id="fsSplImport" style="font-size:13px">Import from dBA symbols</button></div>';
   }
+  if ((def.sections || []).some(sec => (sec.items || []).length)) {
+    html += '<div style="display:flex;gap:6px;align-items:center;margin-top:12px;border:1px solid #3a3f46;border-radius:8px;padding:7px 10px">' +
+      '<div style="flex:1;font-size:12.5px;color:#999">Mark ALL unanswered items:</div>';
+    [["P", "#1b8a3f"], ["F", "#c62828"], ["NA", "#666"]].forEach(([v, col]) => {
+      html += '<button class="btn fsCkAll" data-r="' + v + '" style="padding:7px 11px;font-weight:800;min-width:40px;color:' + col + '">' + v + '</button>';
+    });
+    html += '</div>';
+  }
   (def.sections || []).forEach((sec, si) => {
     html += '<div style="font-weight:700;font-size:14px;margin:12px 0 4px;color:#7ddb8f">' + fsEsc(sec.title) + '</div>';
     (sec.items || []).forEach(it => {
@@ -6459,6 +6556,16 @@ function fsRenderTest() {
     fsSaveSession();
     fsRenderTest();
   });
+  document.querySelectorAll(".fsCkAll").forEach(b => b.onclick = () => {
+    let n = 0;
+    (def.sections || []).forEach(sec => (sec.items || []).forEach(it => {
+      const cur = fsSession.results[it.k] || {};
+      if (!cur.r) { fsSession.results[it.k] = { r: b.dataset.r, note: "" }; n++; }
+    }));
+    if (!n) { alert("Every item is already answered - tap an item's own button to change it."); return; }
+    fsSaveSession();
+    fsRenderTest();
+  });
   document.querySelectorAll(".fsCkNote").forEach(inp => inp.onchange = () => {
     const k = inp.dataset.k;
     fsSession.results[k] = fsSession.results[k] || { r: "F" };
@@ -6475,15 +6582,27 @@ function fsRenderTest() {
   });
   const splAdd = document.getElementById("fsSplAdd");
   if (splAdd) splAdd.onclick = () => { fsSession.spl.push({ loc:"", req:"", meas:"" }); fsSaveSession(); fsRenderTest(); };
-  const splImp = document.getElementById("fsSplImport");
-  if (splImp) splImp.onclick = () => {
-    let added = 0;
+  // every dBA symbol on the plan, with a UNIQUE loc per symbol (identical/blank details
+  // used to collapse into one row, so Import only ever brought in the first reading)
+  const fsDbaList = () => {
+    const seen = {};
+    const out = [];
     allLevelObjects().forEach(e => {
       const o = e.o;
       if (o.kind !== "sym" || o.type !== "dba") return;
-      const loc = (o.info && o.info.trim()) || [o.zone && "Z" + o.zone, o.loop && "L" + o.loop, o.dev && "D" + o.dev].filter(Boolean).join(" ") || ("dBA — " + e.level);
-      if (fsSession.spl.some(r => r.loc === loc)) return;
-      fsSession.spl.push({ loc: loc, req: "", meas: (o.ve || "") });
+      let loc = (o.info && o.info.trim()) || [o.zone && "Z" + o.zone, o.loop && "L" + o.loop, o.dev && "D" + o.dev].filter(Boolean).join(" ") || ("dBA — " + e.level);
+      seen[loc] = (seen[loc] || 0) + 1;
+      if (seen[loc] > 1) loc += " #" + seen[loc];
+      out.push({ loc: loc, zone: (o.zone || ""), ve: (o.ve || "") });
+    });
+    return out;
+  };
+  const splImp = document.getElementById("fsSplImport");
+  if (splImp) splImp.onclick = () => {
+    let added = 0;
+    fsDbaList().forEach(d => {
+      if (fsSession.spl.some(r => r.loc === d.loc)) return;
+      fsSession.spl.push({ loc: d.loc, req: "", meas: d.ve });
       added++;
     });
     if (!added) { alert("No new dBA symbols found on the plan (or all already imported).\nPlace dBA symbols (Fire tab) at amplifier reference locations first."); return; }
@@ -6501,12 +6620,9 @@ function fsRenderTest() {
   const ewImp = document.getElementById("fsEwImport");
   if (ewImp) ewImp.onclick = () => {
     let added = 0;
-    allLevelObjects().forEach(e => {
-      const o = e.o;
-      if (o.kind !== "sym" || o.type !== "dba") return;
-      const loc = (o.info && o.info.trim()) || [o.zone && "Z" + o.zone, o.loop && "L" + o.loop, o.dev && "D" + o.dev].filter(Boolean).join(" ") || ("dBA — " + e.level);
-      if (fsSession.ews5.some(r => r.loc === loc)) return;
-      fsSession.ews5.push({ zone: (o.zone || ""), loc: loc, rcis:"", mcis:"", rspl:"", mspl: (o.ve || ""), rz:"", mz:"" });
+    fsDbaList().forEach(d => {
+      if (fsSession.ews5.some(r => r.loc === d.loc)) return;
+      fsSession.ews5.push({ zone: d.zone, loc: d.loc, rcis:"", mcis:"", rspl:"", mspl: d.ve, rz:"", mz:"" });
       added++;
     });
     if (!added) { alert("No new dBA symbols found on the plan (or all already imported).\nPlace dBA symbols (Fire tab) at amplifier reference locations first."); return; }
@@ -6745,117 +6861,249 @@ function fsCanvasesToPdf(canvases) {
   return new Blob(parts, { type: "application/pdf" });
 }
 function fsTestPdf(rec) {
-  const lines = [];
-  const L = (k, t) => lines.push([k, t]);
-  L("h", (rec.label || rec.mode) + " test record — " + ((rec.finished || "").slice(0, 10)));
-  L("t", "Site: " + (fsSiteCtx ? fsSiteCtx.siteName : (fsSite ? fsSite.name : "")) + (fsClient ? "   ·   Client: " + fsClient.name : ""));
-  if (fsSite && fsSite.address) L("t", "Address: " + fsSite.address);
-  L("t", (rec.ref ? rec.ref + "   ·   " : "") + "Started " + ((rec.started || "").slice(0, 16).replace("T", " ")) + "   ·   Finished " + ((rec.finished || "").slice(0, 16).replace("T", " ")));
-  if (rec.tech) L("t", "Technician: " + rec.tech);
-  if (rec.checklist) {
-    L("h2", "Summary");
-    L("b", "Checklist: " + rec.checklist.p + " pass · " + rec.checklist.f + " fail · " + rec.checklist.na + " N/A (of " + rec.checklist.total + " items)");
-    if (rec.devices && rec.devices.total) L("b", "Devices tested: " + rec.devices.tested + " / " + rec.devices.total + (rec.year ? " (year " + rec.year + ")" : ""));
-  }
-  if (rec.zones && Object.keys(rec.zones).length) {
-    L("h2", "Per-zone device testing (50% smokes / 20% thermals)");
-    Object.keys(rec.zones).sort((a, b) => a === "Unzoned" ? 1 : b === "Unzoned" ? -1 : a.localeCompare(b, undefined, { numeric:true })).forEach(z => {
-      const v = rec.zones[z];
-      L("t", "Zone " + z + " — smokes " + v.s[0] + "/" + v.s[1] + " (need " + Math.ceil(v.s[1] * 0.5) + "), thermals " + v.t[0] + "/" + v.t[1] + " (need " + Math.ceil(v.t[1] * 0.2) + ")");
-    });
-  }
-  if ((rec.spl || []).length) {
-    L("h2", "OWS SPL — Required vs Measured dBA");
-    rec.spl.forEach(r => {
-      const bad = r.req !== "" && r.meas !== "" && !isNaN(+r.req) && !isNaN(+r.meas) && (+r.meas < +r.req);
-      L(bad ? "f" : "t", (r.loc || "(location)") + " — required " + (r.req || "—") + " dBA, measured " + (r.meas || "—") + " dBA" + (bad ? "  ✗ BELOW REQUIRED" : ""));
-    });
-  }
-  if ((rec.ews5 || []).length) {
-    L("h2", "5 Yearly EWS records — CIS / SPL / impedance per amp zone");
-    rec.ews5.forEach(r => {
-      const badS = r.rspl !== "" && r.mspl !== "" && !isNaN(+r.rspl) && !isNaN(+r.mspl) && (+r.mspl < +r.rspl);
-      const badC = r.rcis !== "" && r.mcis !== "" && !isNaN(+r.rcis) && !isNaN(+r.mcis) && (+r.mcis < +r.rcis);
-      const badZ = r.rz !== "" && r.mz !== "" && !isNaN(+r.rz) && !isNaN(+r.mz) && +r.rz !== 0 && (Math.abs(+r.mz - +r.rz) / Math.abs(+r.rz) > 0.15);
-      L((badS || badC || badZ) ? "f" : "t",
-        "Zone " + (r.zone || "?") + (r.loc ? " (" + r.loc + ")" : "") +
-        " — CIS " + (r.mcis || "—") + "/" + (r.rcis || "—") +
-        " · SPL " + (r.mspl || "—") + "/" + (r.rspl || "—") + " dBA" +
-        " · Z " + (r.mz || "—") + "/" + (r.rz || "—") +
-        (badZ ? "  ✗ Z >15% CHANGE" : "") + (badS ? "  ✗ SPL BELOW REF" : "") + (badC ? "  ✗ CIS BELOW REF" : ""));
-    });
-  }
-  if ((rec.failsChecklist || []).length || (rec.failedDevices || []).length) {
-    L("h2", "Fails / defects raised");
-    (rec.failsChecklist || []).forEach(x => L("f", "✗ " + x.k + " — " + x.t + (x.note ? " — " + x.note : "")));
-    (rec.failedDevices || []).forEach(d => L("f", "✗ Device — " + d.type + (d.zone ? " Z" + d.zone : "") + (d.loop ? " L" + d.loop : "") + (d.dev ? " D" + d.dev : "") + (d.info ? " — " + d.info : "") + " (" + d.level + ")"));
-  }
-  L("h2", "Checklist results");
-  const def = fsChecklists && fsChecklists.modes && fsChecklists.modes[rec.mode];
-  const results = (rec.checklist && rec.checklist.results) || {};
-  const seen = {};
-  if (def && (def.sections || []).length) {
-    (def.sections || []).forEach(sec => {
-      const secLines = [];
-      (sec.items || []).forEach(it => {
-        const r = results[it.k];
-        if (!r || !r.r) return;
-        seen[it.k] = 1;
-        secLines.push([r.r === "F" ? "f" : "t", (r.r === "F" ? "✗" : r.r === "P" ? "✓" : "–") + " " + it.k + " [" + r.r + "]  " + it.t + (r.note ? " — " + r.note : "")]);
+  /* C5: redesigned visual report - header band, summary boxes, tables, P/F/NA chips */
+  const W = 1240, H = 1754, M = 74, CW = W - M * 2;
+  const F = px => px + "px system-ui, sans-serif";
+  const FB = px => "bold " + px + "px system-ui, sans-serif";
+  const INK = "#1c2733", SUB = "#5b6773", LINE = "#d9dee4", ZEBRA = "#f4f6f8", BODY = "#2a333c",
+        GRN = "#1b8a3f", RED = "#c62828", REDBG = "#fdecea", ACC = "#e8542f";
+  const meas = document.createElement("canvas").getContext("2d");
+  const wrapText = (txt, font, width) => {
+    meas.font = font;
+    const out = [];
+    String(txt == null ? "" : txt).split("\n").forEach(par => {
+      let cur = "";
+      par.split(" ").forEach(w => {
+        const t = cur ? cur + " " + w : w;
+        if (meas.measureText(t).width > width && cur) { out.push(cur); cur = w; }
+        else cur = t;
       });
-      if (secLines.length) { L("b", sec.title); secLines.forEach(x => lines.push(x)); }
+      out.push(cur);
     });
+    return out;
+  };
+  const d10 = s => (s || "").slice(0, 10);
+  const dt16 = s => (s || "").slice(0, 16).replace("T", " ");
+  const title = (rec.label || rec.mode || "Test") + " test record";
+  const siteName = fsSiteCtx ? fsSiteCtx.siteName : (fsSite ? fsSite.name : "");
+  const pages = [];
+  let cx = null, y = 0;
+  const newPage = () => {
+    const cv2 = document.createElement("canvas"); cv2.width = W; cv2.height = H;
+    cx = cv2.getContext("2d");
+    cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, W, H);
+    cx.textBaseline = "top";
+    pages.push(cv2);
+    y = M;
+    if (pages.length > 1) {
+      cx.fillStyle = SUB; cx.font = F(15);
+      cx.fillText(title + "  ·  " + siteName + "  (continued)", M, y);
+      cx.fillStyle = LINE; cx.fillRect(M, y + 26, CW, 2);
+      y += 48;
+    }
+  };
+  const ensure = h => { if (y + h > H - 92) newPage(); };
+  const secHead = t => {
+    ensure(80);
+    y += 26;
+    cx.fillStyle = ACC; cx.fillRect(M, y + 1, 6, 25);
+    cx.fillStyle = INK; cx.font = FB(21);
+    cx.fillText(t.toUpperCase(), M + 18, y + 2);
+    y += 38;
+    cx.fillStyle = LINE; cx.fillRect(M, y, CW, 2);
+    y += 14;
+  };
+
+  newPage();
+  /* header band */
+  cx.fillStyle = INK; cx.fillRect(0, 0, W, 206);
+  cx.fillStyle = ACC; cx.fillRect(0, 206, W, 6);
+  cx.fillStyle = "#ffffff"; cx.font = FB(36);
+  cx.fillText(title.toUpperCase(), M, 44);
+  cx.font = FB(23);
+  cx.fillText(siteName + (fsClient ? "  ·  " + fsClient.name : ""), M, 100);
+  cx.fillStyle = "#b9c4cd"; cx.font = F(16);
+  if (fsSite && fsSite.address) cx.fillText(fsSite.address, M, 138);
+  cx.fillText((rec.ref ? rec.ref + "   ·   " : "") + "Started " + dt16(rec.started) + "   ·   Finished " + dt16(rec.finished) + (rec.tech ? "   ·   Technician: " + rec.tech : ""), M, 168);
+  cx.font = FB(20);
+  const dstr = d10(rec.finished);
+  const dw = cx.measureText(dstr).width + 36;
+  cx.fillStyle = ACC; cx.fillRect(W - M - dw, 38, dw, 40);
+  cx.fillStyle = "#ffffff"; cx.fillText(dstr, W - M - dw + 18, 48);
+  y = 246;
+
+  /* summary boxes */
+  const boxes = [];
+  if (rec.checklist) {
+    boxes.push([String(rec.checklist.p), "Checklist pass", GRN]);
+    boxes.push([String(rec.checklist.f), "Checklist fail", rec.checklist.f ? RED : SUB]);
+    boxes.push([String(rec.checklist.na), "N/A  (of " + rec.checklist.total + ")", SUB]);
   }
-  Object.entries(results).forEach(([k, r]) => {
-    if (seen[k] || !r || !r.r) return;
-    L(r.r === "F" ? "f" : "t", (r.r === "F" ? "✗" : r.r === "P" ? "✓" : "–") + " " + k + " [" + r.r + "]" + (r.note ? " — " + r.note : ""));
-  });
-  if (rec.obs) {
-    L("h2", "Observations / comments");
-    String(rec.obs).split("\n").forEach(x => L("t", x));
+  if (rec.devices && rec.devices.total) boxes.push([rec.devices.tested + " / " + rec.devices.total, "Devices tested" + (rec.year ? " (" + rec.year + ")" : ""), INK]);
+  const nDef = (rec.failsChecklist || []).length + (rec.failedDevices || []).length;
+  boxes.push([String(nDef), nDef === 1 ? "Defect raised" : "Defects raised", nDef ? RED : GRN]);
+  if (boxes.length) {
+    const bw = Math.floor((CW - (boxes.length - 1) * 14) / boxes.length), bh = 96;
+    boxes.forEach((b, i) => {
+      const x = M + i * (bw + 14);
+      cx.fillStyle = ZEBRA; cx.fillRect(x, y, bw, bh);
+      cx.fillStyle = b[2]; cx.font = FB(34);
+      cx.fillText(b[0], x + 18, y + 15);
+      cx.fillStyle = SUB; cx.font = F(15);
+      cx.fillText(b[1], x + 18, y + 62);
+    });
+    y += bh + 8;
   }
 
-  const W = 1240, H = 1754, margin = 74, maxW = W - margin * 2;
-  const sizes = { h: 34, h2: 25, b: 20, t: 18, f: 18 };
-  const meas = document.createElement("canvas").getContext("2d");
-  const wrapped = [];
-  lines.forEach(([k, txt]) => {
-    meas.font = (k === "t" || k === "f" ? "" : "bold ") + sizes[k] + "px system-ui, sans-serif";
-    const words = String(txt).split(" ");
-    let cur = "";
-    words.forEach(w => {
-      const t2 = cur ? cur + " " + w : w;
-      if (meas.measureText(t2).width > maxW && cur) { wrapped.push([k, cur]); cur = "  " + w; }
-      else cur = t2;
+  /* table helper: cols [{t, w(fraction)}], rows [{cells:[], bad}] */
+  const table = (cols, rows) => {
+    const widths = cols.map(c => Math.floor(c.w * CW));
+    const rowH = 36;
+    const headRow = () => {
+      ensure(rowH + 40);
+      cx.fillStyle = INK; cx.fillRect(M, y, CW, rowH);
+      cx.fillStyle = "#ffffff"; cx.font = FB(15);
+      let x = M;
+      cols.forEach((c, i) => { cx.fillText(c.t, x + 12, y + 9); x += widths[i]; });
+      y += rowH;
+    };
+    headRow();
+    rows.forEach((r, ri) => {
+      const cellLines = r.cells.map((c, i) => wrapText(String(c), F(15), widths[i] - 24));
+      const h = Math.max(rowH, Math.max.apply(null, cellLines.map(l => l.length)) * 22 + 14);
+      if (y + h > H - 92) { newPage(); headRow(); }
+      cx.fillStyle = r.bad ? REDBG : (ri % 2 ? ZEBRA : "#ffffff");
+      cx.fillRect(M, y, CW, h);
+      cx.fillStyle = r.bad ? RED : BODY;
+      cx.font = r.bad ? FB(15) : F(15);
+      let x = M;
+      cellLines.forEach((lns, i) => {
+        lns.forEach((ln, li) => cx.fillText(ln, x + 12, y + 8 + li * 22));
+        x += widths[i];
+      });
+      cx.fillStyle = LINE; cx.fillRect(M, y + h - 1, CW, 1);
+      y += h;
     });
-    wrapped.push([k, cur]);
-  });
-  const pages = [];
-  let cv = null, cx = null, y = 0;
-  const newPage = () => {
-    cv = document.createElement("canvas"); cv.width = W; cv.height = H;
-    cx = cv.getContext("2d");
-    cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, W, H);
-    pages.push(cv); y = margin;
+    y += 4;
   };
-  newPage();
-  wrapped.forEach(([k, txt]) => {
-    const extra = (k === "h2" ? 16 : 0);
-    if (y + sizes[k] + extra > H - margin) newPage();
-    y += extra;
-    cx.fillStyle = k === "f" ? "#b71c1c" : (k === "t" ? "#333333" : "#000000");
-    cx.font = (k === "t" || k === "f" ? "" : "bold ") + sizes[k] + "px system-ui, sans-serif";
-    cx.textBaseline = "top";
-    cx.fillText(txt, margin, y);
-    if (k === "h") { cx.fillRect(margin, y + sizes[k] + 6, maxW, 3); y += 10; }
-    y += sizes[k] + 8;
-  });
+
+  if (rec.zones && Object.keys(rec.zones).length) {
+    secHead("Per-zone device testing — 50% smokes / 20% thermals");
+    const rows = Object.keys(rec.zones).sort((a, b) => a === "Unzoned" ? 1 : b === "Unzoned" ? -1 : a.localeCompare(b, undefined, { numeric:true })).map(z => {
+      const v = rec.zones[z];
+      const needS = Math.ceil(v.s[1] * 0.5), needT = Math.ceil(v.t[1] * 0.2);
+      const ok = v.s[0] >= needS && v.t[0] >= needT;
+      return { cells: ["Zone " + z, v.s[0] + " / " + v.s[1] + "   (need " + needS + ")", v.t[0] + " / " + v.t[1] + "   (need " + needT + ")", ok ? "✓ target met" : "✗ short"], bad: !ok };
+    });
+    table([{ t:"ZONE", w:0.18 }, { t:"SMOKES TESTED", w:0.31 }, { t:"THERMALS TESTED", w:0.31 }, { t:"TARGET", w:0.2 }], rows);
+  }
+
+  if ((rec.spl || []).length) {
+    secHead("OWS SPL — required vs measured dBA");
+    table([{ t:"LOCATION", w:0.46 }, { t:"REQUIRED", w:0.18 }, { t:"MEASURED", w:0.18 }, { t:"RESULT", w:0.18 }],
+      rec.spl.map(r => {
+        const have = r.req !== "" && r.meas !== "" && !isNaN(+r.req) && !isNaN(+r.meas);
+        const bad = have && (+r.meas < +r.req);
+        return { cells: [r.loc || "(location)", (r.req || "—") + " dBA", (r.meas || "—") + " dBA", bad ? "✗ below required" : (have ? "✓ OK" : "—")], bad: bad };
+      }));
+  }
+
+  if ((rec.ews5 || []).length) {
+    secHead("5 yearly EWS records — CIS / SPL / impedance per amp zone");
+    table([{ t:"AMP ZONE", w:0.13 }, { t:"LOCATION", w:0.27 }, { t:"CIS rec/ref", w:0.14 }, { t:"SPL rec/ref", w:0.14 }, { t:"Z rec/ref", w:0.13 }, { t:"RESULT", w:0.19 }],
+      rec.ews5.map(r => {
+        const badS = r.rspl !== "" && r.mspl !== "" && !isNaN(+r.rspl) && !isNaN(+r.mspl) && (+r.mspl < +r.rspl);
+        const badC = r.rcis !== "" && r.mcis !== "" && !isNaN(+r.rcis) && !isNaN(+r.mcis) && (+r.mcis < +r.rcis);
+        const badZ = r.rz !== "" && r.mz !== "" && !isNaN(+r.rz) && !isNaN(+r.mz) && +r.rz !== 0 && (Math.abs(+r.mz - +r.rz) / Math.abs(+r.rz) > 0.15);
+        const flags = [];
+        if (badC) flags.push("CIS low");
+        if (badS) flags.push("SPL low");
+        if (badZ) flags.push("Z >15%");
+        return { cells: [r.zone || "?", r.loc || "", (r.mcis || "—") + " / " + (r.rcis || "—"), (r.mspl || "—") + " / " + (r.rspl || "—"), (r.mz || "—") + " / " + (r.rz || "—"), flags.length ? "✗ " + flags.join(", ") : "✓ OK"], bad: !!flags.length };
+      }));
+  }
+
+  const failLines = [];
+  (rec.failsChecklist || []).forEach(x => failLines.push("✗  " + x.k + " — " + x.t + (x.note ? " — " + x.note : "")));
+  (rec.failedDevices || []).forEach(d => failLines.push("✗  Device — " + d.type + (d.zone ? " Z" + d.zone : "") + (d.loop ? " L" + d.loop : "") + (d.dev ? " D" + d.dev : "") + (d.info ? " — " + d.info : "") + " (" + d.level + ")"));
+  if (failLines.length) {
+    secHead("Fails / defects raised");
+    failLines.forEach(t => {
+      const lns = wrapText(t, FB(15), CW - 44);
+      const h = lns.length * 22 + 16;
+      ensure(h + 6);
+      cx.fillStyle = REDBG; cx.fillRect(M, y, CW, h);
+      cx.fillStyle = RED; cx.fillRect(M, y, 6, h);
+      cx.font = FB(15);
+      lns.forEach((ln, li) => cx.fillText(ln, M + 22, y + 8 + li * 22));
+      y += h + 6;
+    });
+  }
+
+  const def = fsChecklists && fsChecklists.modes && fsChecklists.modes[rec.mode];
+  const results = (rec.checklist && rec.checklist.results) || {};
+  const anyCk = Object.values(results).some(r => r && r.r);
+  if (anyCk) {
+    secHead("Checklist results");
+    const ckRow = (k, t, r) => {
+      const bold = r.r === "F";
+      const lns = wrapText((k ? k + "   " : "") + t, bold ? FB(15) : F(15), CW - 90);
+      const noteLns = r.note ? wrapText("Note: " + r.note, "italic " + F(14), CW - 110) : [];
+      const h = lns.length * 22 + noteLns.length * 20 + 14;
+      ensure(h);
+      const col = r.r === "P" ? GRN : r.r === "F" ? RED : "#8a949d";
+      cx.fillStyle = col; cx.fillRect(M, y + 2, 46, 26);
+      cx.fillStyle = "#ffffff"; cx.font = FB(14);
+      cx.fillText(r.r, M + (46 - cx.measureText(r.r).width) / 2, y + 8);
+      cx.fillStyle = bold ? RED : BODY;
+      cx.font = bold ? FB(15) : F(15);
+      lns.forEach((ln, li) => cx.fillText(ln, M + 62, y + 4 + li * 22));
+      let yy = y + 4 + lns.length * 22;
+      cx.fillStyle = RED; cx.font = "italic " + F(14);
+      noteLns.forEach(ln => { cx.fillText(ln, M + 62, yy); yy += 20; });
+      cx.fillStyle = LINE; cx.fillRect(M, y + h - 2, CW, 1);
+      y += h + 2;
+    };
+    const seen = {};
+    if (def && (def.sections || []).length) {
+      (def.sections || []).forEach(sec => {
+        const items = (sec.items || []).filter(it => { const r = results[it.k]; return r && r.r; });
+        if (!items.length) return;
+        ensure(56);
+        y += 10;
+        cx.fillStyle = INK; cx.font = FB(17);
+        cx.fillText(sec.title, M, y);
+        y += 32;
+        items.forEach(it => { seen[it.k] = 1; ckRow(it.k, it.t, results[it.k]); });
+      });
+    }
+    Object.entries(results).forEach(([k, r]) => {
+      if (seen[k] || !r || !r.r) return;
+      ckRow(k, "", r);
+    });
+  }
+
+  if (rec.obs) {
+    secHead("Observations / comments");
+    const lns = wrapText(rec.obs, F(15), CW - 40);
+    const h = lns.length * 22 + 20;
+    ensure(h);
+    cx.fillStyle = ZEBRA; cx.fillRect(M, y, CW, h);
+    cx.fillStyle = BODY; cx.font = F(15);
+    lns.forEach((ln, li) => cx.fillText(ln, M + 20, y + 10 + li * 22));
+    y += h;
+  }
+
   pages.forEach((pg, i) => {
     const c2 = pg.getContext("2d");
-    c2.fillStyle = "#888888"; c2.font = "16px system-ui, sans-serif"; c2.textBaseline = "top";
-    c2.fillText("FireSpark test record — page " + (i + 1) + " of " + pages.length, margin, H - 40);
+    c2.textBaseline = "top";
+    c2.fillStyle = LINE; c2.fillRect(M, H - 58, CW, 1);
+    c2.fillStyle = "#98a1a9"; c2.font = F(14);
+    c2.fillText("FireSpark test record · " + siteName + " · " + d10(rec.finished), M, H - 44);
+    const pt = "Page " + (i + 1) + " of " + pages.length;
+    c2.fillText(pt, W - M - c2.measureText(pt).width, H - 44);
   });
-  deliverFile(fsCanvasesToPdf(pages), "test-" + (rec.mode || "record") + "-" + ((rec.finished || "").slice(0, 10) || "record") + ".pdf", "application/pdf");
+  deliverFile(fsCanvasesToPdf(pages), "test-" + (rec.mode || "record") + "-" + (d10(rec.finished) || "record") + ".pdf", "application/pdf");
 }
 
 /* ---------- C4.1: consolidated per-site year summary PDF (client handover) ---------- */

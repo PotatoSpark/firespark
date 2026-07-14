@@ -1,4 +1,4 @@
-const CACHE = "fs-v20";
+const CACHE = "fs-v21";
 const ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon-180.png", "./icon-192.png", "./icon-512.png", "./pdf.min.js", "./pdf.worker.min.js"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
