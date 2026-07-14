@@ -160,7 +160,7 @@
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
       <span style="font-size:21px;font-weight:800;color:#c8340f;display:inline-flex;align-items:center;gap:8px"><img src="icon-192.png" style="width:26px;height:26px;border-radius:6px" alt=""> FIRESPARK</span>
-      <span style="font-size:11px;color:#7c8a91">v0.21 beta</span>
+      <span style="font-size:11px;color:#7c8a91">v0.22 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsThemeBtn" title="Light / dark">&#127765;</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -212,7 +212,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.21 beta</span></span>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.22 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -279,6 +279,7 @@
       <select id="lineStyleSel" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px">
         <option value="solid">Solid</option><option value="dash">Dashed</option><option value="dot">Dotted</option>
       </select>
+      <label style="display:flex;align-items:center;gap:4px;margin-left:6px" title="After drawing, switch to Select with the new shape selected"><input type="checkbox" id="selAfterOn" style="width:16px;height:16px"> then select</label>
     </div>
     <div id="testWrap" style="display:none;align-items:center;gap:5px;font-size:12px;color:#aaa">Testing year
       <select id="testYear" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px">
@@ -2823,6 +2824,9 @@ document.getElementById("lineStyleSel").addEventListener("change", e => {
 let lineEnds = { line:{ hs:"none", he:"none" }, arrow:{ hs:"arrow", he:"none" } };
 try { const le = JSON.parse(localStorage.getItem("bpm-lineends") || "null"); if (le && le.line && le.arrow) lineEnds = le; } catch (e) {}
 function saveLineEnds() { try { localStorage.setItem("bpm-lineends", JSON.stringify(lineEnds)); } catch (e) {} }
+let selAfterDraw = localStorage.getItem("bpm-selafter") !== "0";   // default ON: drawing a shape selects it straight away
+document.getElementById("selAfterOn").checked = selAfterDraw;
+document.getElementById("selAfterOn").onchange = ev => { selAfterDraw = ev.target.checked; localStorage.setItem("bpm-selafter", selAfterDraw ? "1" : "0"); };
 function applyEndSel(which, val) {
   if (activeTool === "line" || activeTool === "arrow") { lineEnds[activeTool][which] = val; saveLineEnds(); }
   const targets = selection.filter(o => o.kind === "shape" && (o.shape === "line" || o.shape === "arrow"));
@@ -4483,7 +4487,7 @@ function endPointer(e) {
         pushUndo();
         objects.push(tempShape);
         setSelection([tempShape]);
-        if (tempShape.shape === "hatch") setTool("select");
+        if (tempShape.shape === "hatch" || selAfterDraw) setTool("select");
       }
     }
     tempShape = null; shapeStart = null; dragMode = null;
@@ -5642,14 +5646,25 @@ function fsInfoPhotoHtml() {
     '<input class="fsinput fsInfoField" data-key="mapUrl" type="url" placeholder="https://maps.app.goo.gl/..." value="' + fsEsc(s.mapUrl || "") + '">';
   const vis = s.visit || {};
   if (fsInfoEdit) {
-    html += '<div class="fslabel">Routine test &mdash; minutes on site + preferred start time (blank time = anytime). The Planner uses these.</div>' +
-      '<div style="display:flex;gap:8px">' +
-      '<input class="fsinput fsVisitField" data-key="mins" type="number" min="5" step="5" placeholder="Minutes, e.g. 30" value="' + fsEsc(vis.mins || "") + '" style="flex:1">' +
-      '<input class="fsinput fsVisitField" data-key="pref" type="time" value="' + fsEsc(vis.pref || "") + '" style="flex:1">' +
-      '</div>';
-  } else if (vis.mins || vis.pref) {
+    const vRow = (label, key) => {
+      const tot = +vis[key] || 0;
+      return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><div style="width:86px;font-size:12.5px;color:var(--fs-sub2)">' + label + '</div>' +
+        '<input class="fsinput fsVisH" data-key="' + key + '" type="number" min="0" step="1" placeholder="hours" value="' + (Math.floor(tot / 60) || "") + '" style="width:90px">' +
+        '<input class="fsinput fsVisM" data-key="' + key + '" type="number" min="0" step="5" placeholder="mins" value="' + (tot % 60 || "") + '" style="width:90px"></div>';
+    };
+    html += '<div class="fslabel">Time on site per routine test (hours + minutes) &mdash; the Planner uses whichever cycle is due. Blank = not set.</div>' +
+      vRow("Monthly", "mins") + vRow("6 monthly", "mins6") + vRow("Annual", "minsA") +
+      '<div class="fslabel">Preferred start time (blank = can be tested anytime)</div>' +
+      '<input class="fsinput" id="fsVisPref" type="time" value="' + fsEsc(vis.pref || "") + '" style="max-width:160px">';
+  } else if (+vis.mins || +vis.mins6 || +vis.minsA || vis.pref) {
+    const fm = t => t >= 60 ? Math.floor(t / 60) + "h" + (t % 60 ? " " + (t % 60) + "m" : "") : t + "m";
+    const bits = [];
+    if (+vis.mins) bits.push("Monthly " + fm(+vis.mins));
+    if (+vis.mins6) bits.push("6 monthly " + fm(+vis.mins6));
+    if (+vis.minsA) bits.push("Annual " + fm(+vis.minsA));
+    bits.push(vis.pref ? "preferred start " + fsEsc(vis.pref) : "anytime");
     html += '<div style="display:flex;border-top:1px solid var(--fs-border);padding:11px 0"><div style="width:38%;color:var(--fs-sub);font-size:13.5px">Routine test</div>' +
-      '<div style="flex:1;font-weight:600;font-size:14px">' + (vis.mins ? vis.mins + ' min on site' : 'time not set') + ' &middot; ' + (vis.pref ? 'preferred start ' + fsEsc(vis.pref) : 'anytime') + '</div></div>';
+      '<div style="flex:1;font-weight:600;font-size:14px">' + bits.join(" &middot; ") + '</div></div>';
   }
   if (!fsInfoEdit && !infoRows.some(([l, k]) => s[k])) html += '<div style="color:var(--fs-faint);font-size:13px">Nothing recorded yet — tap Edit.</div>';
   html += '</div>';
@@ -5892,9 +5907,16 @@ function fsRenderTab() {
     document.getElementById("fsInfoEditBtn").onclick = () => {
       if (fsInfoEdit) {
         document.querySelectorAll(".fsInfoField").forEach(f => { s[f.dataset.key] = f.value.trim(); });
-        const vf = {};
-        document.querySelectorAll(".fsVisitField").forEach(f => { vf[f.dataset.key] = f.value.trim(); });
-        if ("mins" in vf || "pref" in vf) s.visit = { mins: +vf.mins || 0, pref: vf.pref || "" };
+        const vh = {}, vm2 = {};
+        document.querySelectorAll(".fsVisH").forEach(f => { vh[f.dataset.key] = +f.value || 0; });
+        document.querySelectorAll(".fsVisM").forEach(f => { vm2[f.dataset.key] = +f.value || 0; });
+        const pf = document.getElementById("fsVisPref");
+        if (pf) s.visit = {
+          mins: (vh.mins || 0) * 60 + (vm2.mins || 0),
+          mins6: (vh.mins6 || 0) * 60 + (vm2.mins6 || 0),
+          minsA: (vh.minsA || 0) * 60 + (vm2.minsA || 0),
+          pref: pf.value || ""
+        };
         fsMarkDirty();
         fsInfoEdit = false;
         fsRenderSite();   // full re-render so the header "Open in maps" button appears/disappears
@@ -7221,7 +7243,7 @@ const FSPL_COLS = ["#0e7c8c", "#5b6fbf", "#b4552d", "#6d8f2f", "#8a5bb4", "#2d7d
 function fsPlLoadSettings() {
   if (fsPlSettings) return fsPlSettings;
   try { fsPlSettings = JSON.parse(localStorage.getItem("fs-planner") || "null"); } catch (e) {}
-  if (!fsPlSettings || !fsPlSettings.workDays) fsPlSettings = { dayStart: "06:30", dayEnd: "15:00", buffer: 10, workDays: [1, 2, 3, 4, 5], baseAddr: "", baseGeo: null };
+  if (!fsPlSettings || !fsPlSettings.workDays) fsPlSettings = { dayStart: "07:00", dayEnd: "15:30", buffer: 10, workDays: [1, 2, 3, 4, 5], baseAddr: "", baseGeo: null };
   return fsPlSettings;
 }
 function fsPlSaveSettings() { localStorage.setItem("fs-planner", JSON.stringify(fsPlSettings)); }
@@ -7245,20 +7267,40 @@ function fsPlHavMin(a, b) {  // fallback: haversine km x 1.35 road factor at 65 
   return Math.round(km / 65 * 60);
 }
 function fsPlTravel(aGeo, aId, bGeo, bId) {  // driving minutes a->b: matrix first, estimate second
+  // 5-min floor between DIFFERENT sites: park, walk in, pack up - stops days packing unrealistically
   const tv = fsRegister && fsRegister.travel;
   if (tv && tv.ids) {
     const i = tv.ids.indexOf(aId), j = tv.ids.indexOf(bId);
-    if (i >= 0 && j >= 0 && tv.mins[i] && tv.mins[i][j] != null) return { min: tv.mins[i][j], est: false };
+    if (i >= 0 && j >= 0 && tv.mins[i] && tv.mins[i][j] != null) return { min: Math.max(5, tv.mins[i][j]), est: false };
   }
-  if (aGeo && bGeo) return { min: fsPlHavMin(aGeo, bGeo), est: true };
+  if (aGeo && bGeo) return { min: Math.max(5, fsPlHavMin(aGeo, bGeo)), est: true };
   return null;
 }
+function fsPlMinsFor(s, month) {  // visit duration for the cycle actually due that month (annual > 6m > monthly)
+  const v = s.visit || {};
+  const keys = fsPlDueCycles(s, month).map(d => d.key);
+  if ((keys.indexOf("lastAnnual") >= 0 || keys.indexOf("last5y") >= 0) && +v.minsA) return +v.minsA;
+  if (keys.indexOf("last6m") >= 0 && +v.mins6) return +v.mins6;
+  return +v.mins || 30;
+}
+function fsPlFmtMins(t) { return t >= 60 ? Math.floor(t / 60) + "h" + (t % 60 ? " " + (t % 60) + "m" : "") : t + "m"; }
 
 async function fsPlGeocode(addr) {
-  const r = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + encodeURIComponent(addr), { headers: { "Accept": "application/json" } });
-  if (!r.ok) throw new Error("geocode http " + r.status);
-  const j = await r.json();
-  return j.length ? { lat: +j[0].lat, lng: +j[0].lon } : null;
+  const one = async q => {
+    const r = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=au&q=" + encodeURIComponent(q), { headers: { "Accept": "application/json" } });
+    if (!r.ok) throw new Error("geocode http " + r.status);
+    const j = await r.json();
+    return j.length ? { lat: +j[0].lat, lng: +j[0].lon } : null;
+  };
+  let g = await one(addr);
+  if (!g) {
+    const m = /\d.*/.exec(addr);   // "Wisteria House, 72 Watt St..." -> retry as "72 Watt St..."
+    if (m && m[0] !== addr) {
+      await new Promise(res => setTimeout(res, 1100));
+      g = await one(m[0]);
+    }
+  }
+  return g;
 }
 async function fsPlEnsureTravel(status) {  // self-maintaining geo + matrix; safe to re-run any time
   const entries = fsPlSites().filter(e => (e.s.address || "").trim());
@@ -7305,7 +7347,7 @@ function fsPlDueCycles(s, month) {  // cycle labels due (or overdue) by the end 
     const d = new Date(t);
     if (isNaN(d)) return;
     d.setMonth(d.getMonth() + c.months);
-    if (d <= end) out.push(c.label);
+    if (d <= end) out.push({ key: c.key, label: c.label });
   });
   return out;
 }
@@ -7314,16 +7356,20 @@ function fsPlKeyLt(a, b) {
   for (let i = 0; i < a.length; i++) { if (a[i] < b[i]) return true; if (a[i] > b[i]) return false; }
   return false;
 }
-function fsPlAutoPlan(selIds) {  // deterministic greedy day-fill; locked days untouched
+function fsPlAutoPlan(selIds, fromDk, toDk) {  // deterministic greedy day-fill; locked days untouched
   const st = fsPlLoadSettings();
   const mo = fsPlMonthObj();
   const y = +fsPlMonth.slice(0, 4), mNum = +fsPlMonth.slice(5, 7);
   const dim = new Date(y, mNum, 0).getDate();
+  const from = (fromDk || "").trim() || fsPlMonth + "-01";
+  const to = (toDk || "").trim() || fsPlMonth + "-31";
   const workDates = [];
   for (let d = 1; d <= dim; d++) {
-    if (st.workDays.indexOf(new Date(y, mNum - 1, d).getDay()) >= 0) workDates.push(fsPlMonth + "-" + String(d).padStart(2, "0"));
+    const dk = fsPlMonth + "-" + String(d).padStart(2, "0");
+    if (dk < from || dk > to) continue;
+    if (st.workDays.indexOf(new Date(y, mNum - 1, d).getDay()) >= 0) workDates.push(dk);
   }
-  const startM = fsPlT2M(st.dayStart) || 390, endM = fsPlT2M(st.dayEnd) || 900, buf = +st.buffer || 0;
+  const startM = fsPlT2M(st.dayStart) || 420, endM = fsPlT2M(st.dayEnd) || 930, buf = +st.buffer || 0;
   const plannedIds = {};
   workDates.forEach(dk => { if (mo.locked[dk]) (mo.days[dk] || []).forEach(x => { plannedIds[x.siteId] = 1; }); });
   let remaining = selIds.filter(id => !plannedIds[id]).map(fsPlById).filter(Boolean);
@@ -7341,22 +7387,25 @@ function fsPlAutoPlan(selIds) {  // deterministic greedy day-fill; locked days u
     let t = startM;
     for (;;) {
       let best = null, bestKey = null;
+      const dayEmpty = !mo.days[dk].length;
       remaining.forEach(e => {
-        const mins = (e.s.visit && +e.s.visit.mins) || 30;
+        const mins = fsPlMinsFor(e.s, fsPlMonth);
         const trv = cur ? fsPlTravel(cur.geo, cur.id, e.s.geo, e.s.id) : { min: 0, est: false };
         if (!trv) return;
         const arrive = t + trv.min;
         const prefM = fsPlT2M(e.s.visit && e.s.visit.pref);
         let sM;
         if (prefM != null) {
-          if (arrive > prefM || prefM + mins > endM) return;   // can't make / doesn't fit the preferred start
+          if (prefM + mins > endM) return;                       // doesn't fit before day end
+          if (prefM < startM) { if (!dayEmpty) return; }         // pref BEFORE day start: allowed as the day's FIRST stop (shown amber)
+          else if (arrive > prefM) return;                       // can't make the preferred start any more today
           sM = prefM;
         } else {
-          sM = arrive;
+          sM = Math.max(arrive, startM);
           if (sM + mins > endM) return;
         }
-        const wait = prefM != null ? prefM - arrive : 0;
-        const key = (prefM != null && wait <= 90) ? [0, prefM, trv.min, nm(e)] : [1, trv.min, sM, nm(e)];
+        const wait = prefM != null ? Math.max(0, prefM - arrive) : 0;
+        const key = (prefM != null && (wait <= 90 || prefM < startM)) ? [0, prefM, trv.min, nm(e)] : [1, trv.min, sM, nm(e)];
         if (!best || fsPlKeyLt(key, bestKey)) { best = { e: e, sM: sM, mins: mins }; bestKey = key; }
       });
       if (!best) break;
@@ -7399,28 +7448,43 @@ async function fsPlPlanClick() {
 function fsPlPicker() {  // confirm/edit the month's to-do list before anything is scheduled
   const d = document.createElement("div");
   d.style.cssText = "position:fixed;inset:0;z-index:250;background:rgba(10,14,16,.72);display:flex;align-items:center;justify-content:center;padding:16px";
-  let html = '<div class="fscard" style="padding:20px;max-width:520px;width:100%;max-height:86vh;overflow:auto">' +
+  // sites planned LAST month are assumed recurring - pre-ticked alongside due sites
+  const pv = new Date(+fsPlMonth.slice(0, 4), +fsPlMonth.slice(5, 7) - 2, 1);
+  const pvKey = pv.getFullYear() + "-" + String(pv.getMonth() + 1).padStart(2, "0");
+  const prevIds = {};
+  Object.keys(((fsPlPlans[pvKey] || {}).days) || {}).forEach(dk2 => (fsPlPlans[pvKey].days[dk2] || []).forEach(x => { prevIds[x.siteId] = 1; }));
+  let html = '<div class="fscard" style="padding:20px;max-width:540px;width:100%;max-height:88vh;overflow:auto">' +
     '<h3 style="font-size:16.5px;font-weight:800;margin-bottom:2px">Plan ' + fsPlMonthName() + '</h3>' +
-    '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:10px">Sites due this month are pre-ticked (from register test dates). Tick or untick anything, then Plan.</div>';
+    '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:8px">Pre-ticked: due this month (register test dates) or planned last month. Tick/untick anything, then Plan.</div>' +
+    '<input class="fsinput" id="fsPlPickSearch" placeholder="Search clients &amp; sites…" style="margin-bottom:6px;padding:9px">' +
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;font-size:12px;color:var(--fs-sub2)">Plan from' +
+    '<input class="fsinput" id="fsPlFrom" type="date" value="' + fsPlMonth + '-01" style="width:150px;padding:6px">to' +
+    '<input class="fsinput" id="fsPlTo" type="date" value="' + fsPlMonth + '-' + String(new Date(+fsPlMonth.slice(0, 4), +fsPlMonth.slice(5, 7), 0).getDate()).padStart(2, "0") + '" style="width:150px;padding:6px"></div>';
   fsPlSites().forEach(e => {
     const due = fsPlDueCycles(e.s, fsPlMonth);
-    const mins = (e.s.visit && e.s.visit.mins) || "";
+    const rec = prevIds[e.s.id] && !due.length;
+    const mins = fsPlMinsFor(e.s, fsPlMonth);
     const pref = (e.s.visit && e.s.visit.pref) || "";
-    html += '<label style="display:flex;gap:9px;align-items:center;border-top:1px solid var(--fs-border);padding:8px 0;cursor:pointer">' +
-      '<input type="checkbox" class="fsPlPick" data-id="' + fsEsc(e.s.id) + '"' + (due.length ? ' checked' : '') + ' style="width:18px;height:18px;accent-color:var(--fs-accent)">' +
+    html += '<label class="fsPlRow" data-txt="' + fsEsc((e.s.name + " " + e.c.name).toLowerCase()) + '" style="display:flex;gap:9px;align-items:center;border-top:1px solid var(--fs-border);padding:8px 0;cursor:pointer">' +
+      '<input type="checkbox" class="fsPlPick" data-id="' + fsEsc(e.s.id) + '"' + ((due.length || prevIds[e.s.id]) ? ' checked' : '') + ' style="width:18px;height:18px;accent-color:var(--fs-accent)">' +
       '<span style="flex:1;min-width:0"><b style="font-size:14px">' + fsEsc(e.s.name) + '</b> <span style="color:var(--fs-sub2);font-size:12px">' + fsEsc(e.c.name) + '</span><br>' +
-      '<span style="font-size:11.5px;color:' + (due.length ? '#c62828' : 'var(--fs-faint)') + '">' + (due.length ? 'Due: ' + due.join(", ") : 'nothing due') + '</span>' +
-      '<span style="font-size:11.5px;color:var(--fs-sub2)"> · ' + (mins ? mins + 'm' : '30m assumed') + (pref ? ' · pref ' + fsEsc(pref) : '') + (e.s.geo ? '' : ' · ⚠ not located yet') + '</span></span></label>';
+      '<span style="font-size:11.5px;color:' + (due.length ? '#c62828' : 'var(--fs-faint)') + '">' + (due.length ? 'Due: ' + due.map(x => x.label).join(", ") : (rec ? 'planned last month' : 'nothing due')) + '</span>' +
+      '<span style="font-size:11.5px;color:var(--fs-sub2)"> · ' + fsPlFmtMins(mins) + (pref ? ' · pref ' + fsEsc(pref) : '') + (e.s.geo ? '' : ' · ⚠ not located yet') + '</span></span></label>';
   });
-  html += '<div style="display:flex;gap:8px;margin-top:14px"><button class="fsbtn" id="fsPlPickX" style="flex:1">Cancel</button><button class="fsbtnP" id="fsPlPickGo" style="flex:2">⚡ Plan the month</button></div></div>';
+  html += '<div style="display:flex;gap:8px;margin-top:14px"><button class="fsbtn" id="fsPlPickX" style="flex:1">Cancel</button><button class="fsbtnP" id="fsPlPickGo" style="flex:2">⚡ Plan</button></div></div>';
   d.innerHTML = html;
   document.body.appendChild(d);
+  d.querySelector("#fsPlPickSearch").oninput = ev => {
+    const q = ev.target.value.trim().toLowerCase();
+    d.querySelectorAll(".fsPlRow").forEach(row => { row.style.display = !q || row.dataset.txt.indexOf(q) >= 0 ? "flex" : "none"; });
+  };
   d.querySelector("#fsPlPickX").onclick = () => d.remove();
   d.querySelector("#fsPlPickGo").onclick = () => {
     const ids = [...d.querySelectorAll(".fsPlPick")].filter(cb => cb.checked).map(cb => cb.dataset.id);
+    const from = d.querySelector("#fsPlFrom").value, to = d.querySelector("#fsPlTo").value;
     d.remove();
     if (!ids.length) { alert("Nothing ticked - nothing to plan."); return; }
-    fsPlAutoPlan(ids);
+    fsPlAutoPlan(ids, from, to);
     fsPlSelDay = null;
     fsPlRender();
   };
@@ -7472,9 +7536,28 @@ function fsPlPdf() {
   fsLinesPdf(lines, "FireSpark month plan — " + fsPlMonthName(), "plan-" + fsPlMonth + ".pdf");
 }
 function fsPlNav(s) {
+  // navigate by ADDRESS when we have one - maps apps resolve street addresses to the exact
+  // building, whereas our geocoded coords can sit on the road segment (Reece: wrong site)
   const apple = /iPad|iPhone/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && "ontouchend" in document);
-  const dest = s.geo ? s.geo.lat + "," + s.geo.lng : encodeURIComponent(s.address || s.name || "");
+  const dest = (s.address || "").trim() ? encodeURIComponent(s.address.trim())
+    : (s.geo ? s.geo.lat + "," + s.geo.lng : encodeURIComponent(s.name || ""));
   window.open(apple ? "https://maps.apple.com/?daddr=" + dest : "https://www.google.com/maps/dir/?api=1&destination=" + dest, "_blank");
+}
+async function fsPlUpdateTravel(relocate) {
+  if (fsPlBusy) return;
+  if (relocate && !confirm("Re-locate ALL sites from their addresses and rebuild every travel time?\nUse this after fixing addresses. Needs internet - takes about a second per site.")) return;
+  fsPlBusy = true;
+  if (relocate) { fsPlSites().forEach(e => { delete e.s.geo; }); delete fsRegister.travel; }
+  const ov = fsPlStatusOverlay();
+  let res;
+  try { res = await fsPlEnsureTravel(m => ov.set(m)); }
+  catch (e) { res = { offline: true, failed: [] }; }
+  ov.close();
+  fsPlBusy = false;
+  let msg = res.offline ? "Couldn't reach the map services - check internet and try again." : "Travel times updated.";
+  if (res.failed.length) msg += "\nStill couldn't locate: " + res.failed.join(", ") + " - check those addresses on the site page.";
+  alert(msg);
+  fsPlRender();
 }
 
 function fsPlRender() {
@@ -7484,8 +7567,12 @@ function fsPlRender() {
   const y = +fsPlMonth.slice(0, 4), mNum = +fsPlMonth.slice(5, 7);
   const dim = new Date(y, mNum, 0).getDate();
   const firstDow = new Date(y, mNum - 1, 1).getDay();   // Sunday-first, like Reece's Word grid
-  const startM = fsPlT2M(st.dayStart) || 390, endM = fsPlT2M(st.dayEnd) || 900;
-  const tvNote = fsRegister.travel ? "travel times updated " + (fsRegister.travel.updated || "").slice(0, 10) : "no travel times yet - Plan month fetches them (needs internet once)";
+  const startM = fsPlT2M(st.dayStart) || 420, endM = fsPlT2M(st.dayEnd) || 930;
+  const withA = fsPlSites().filter(e => (e.s.address || "").trim());
+  const unlocated = withA.filter(e => !e.s.geo).map(e => e.s.name);
+  let tvNote = "Located " + (withA.length - unlocated.length) + " of " + withA.length + " sites · " +
+    (fsRegister.travel ? "travel times (" + fsRegister.travel.ids.length + " sites) updated " + (fsRegister.travel.updated || "").slice(0, 10) : "no travel times yet - Plan month fetches them (needs internet once)");
+  if (unlocated.length) tvNote += '<br><span style="color:#c62828">Not located (fix the address, then ⟳ Update travel times in ⚙): ' + unlocated.map(fsEsc).join(", ") + '</span>';
 
   let html = '<div style="margin-bottom:12px"><a id="fsPlBack" style="color:var(--fs-accent);font-weight:700;cursor:pointer;font-size:15px">&#8592; Clients</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">' +
@@ -7509,7 +7596,9 @@ function fsPlRender() {
       dows.map((d2, i) => '<label style="font-size:13px;display:flex;gap:4px;align-items:center"><input type="checkbox" class="fsPlCfgD" data-d="' + i + '"' + (st.workDays.indexOf(i) >= 0 ? ' checked' : '') + '>' + d2 + '</label>').join("") + '</div>' +
       '<div style="margin:10px 0 4px;font-size:11.5px;color:var(--fs-sub2)">Optional start/finish base (home or depot) - blank = day starts at the first site</div>' +
       '<input class="fsinput" id="fsPlCfgBase" placeholder="Address, e.g. 1 Example St Newcastle" value="' + fsEsc(st.baseAddr || "") + '">' +
-      '<div style="margin-top:10px"><button class="fsbtnP" id="fsPlCfgSave">Save settings</button></div></div>';
+      '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="fsbtnP" id="fsPlCfgSave">Save settings</button>' +
+      '<button class="fsbtn" id="fsPlUpdT" title="Fetch travel times for any new/fixed sites">&#8635; Update travel times</button>' +
+      '<button class="fsbtn" id="fsPlRelocate" title="Wipe all locations and re-find every site from its address">&#8634; Re-locate ALL sites</button></div></div>';
   }
 
   const trayItems = mo.tray || [];
@@ -7533,8 +7622,9 @@ function fsPlRender() {
       let cell = '<div style="font-size:10.5px;font-weight:700;color:' + (dk === todayK ? 'var(--fs-accent)' : 'var(--fs-sub2)') + ';padding:1px 2px">' + day + (mo.locked[dk] ? ' &#128274;' : '') + '</div>';
       stops.forEach(x => {
         const e = fsPlById(x.siteId);
-        const col = FSPL_COLS[(e ? e.ci : 0) % FSPL_COLS.length];
-        cell += '<div style="background:' + col + ';color:#fff;border-radius:5px;font-size:10px;font-weight:700;padding:1px 4px;margin:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fsEsc(x.start) + ' ' + fsEsc(e ? e.s.name : "?") + '</div>';
+        const outside = fsPlT2M(x.start) != null && fsPlT2M(x.start) < startM;   // amber = starts before set hours
+        const col = outside ? "#b45f00" : FSPL_COLS[(e ? e.ci : 0) % FSPL_COLS.length];
+        cell += '<div style="background:' + col + ';color:#fff;border-radius:5px;font-size:10px;font-weight:700;padding:1px 4px;margin:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"' + (outside ? ' title="Starts before your set day start"' : '') + '>' + fsEsc(x.start) + ' ' + fsEsc(e ? e.s.name : "?") + '</div>';
       });
       if (stops.length) {
         const lastEnd = Math.max.apply(null, stops.map(x => fsPlT2M(x.start) + x.mins));
@@ -7558,11 +7648,15 @@ function fsPlRender() {
   document.getElementById("fsPlCfg").onclick = () => { fsPlShowSettings = !fsPlShowSettings; fsPlRender(); };
   document.getElementById("fsPlPdfBtn").onclick = fsPlPdf;
   document.getElementById("fsPlIcsBtn").onclick = () => fsPlIcs(Object.keys(fsPlMonthObj().days).sort(), "plan-" + fsPlMonth + ".ics");
+  const updT = document.getElementById("fsPlUpdT");
+  if (updT) updT.onclick = () => fsPlUpdateTravel(false);
+  const reloc = document.getElementById("fsPlRelocate");
+  if (reloc) reloc.onclick = () => fsPlUpdateTravel(true);
   const cfgSave = document.getElementById("fsPlCfgSave");
   if (cfgSave) cfgSave.onclick = () => {
     const st2 = fsPlLoadSettings();
-    st2.dayStart = document.getElementById("fsPlCfgS").value || "06:30";
-    st2.dayEnd = document.getElementById("fsPlCfgE").value || "15:00";
+    st2.dayStart = document.getElementById("fsPlCfgS").value || "07:00";
+    st2.dayEnd = document.getElementById("fsPlCfgE").value || "15:30";
     st2.buffer = +document.getElementById("fsPlCfgB").value || 0;
     st2.workDays = [...document.querySelectorAll(".fsPlCfgD")].filter(cb => cb.checked).map(cb => +cb.dataset.d);
     const nb = document.getElementById("fsPlCfgBase").value.trim();
@@ -7607,7 +7701,8 @@ function fsPlDayHtml(dk) {
       '<button class="fsbtnP fsPlNavB" data-i="' + i + '" style="padding:6px 11px;font-size:12px">&#9654; Navigate</button></div>' +
       '<div style="font-size:12px;color:var(--fs-sub);margin-top:3px">' +
       '<a class="fsPlTime" data-i="' + i + '" style="cursor:pointer;text-decoration:underline">' + fsEsc(x.start) + '</a>' +
-      ' &rarr; ' + endT + ' (' + x.mins + 'm)' + (e && e.s.visit && e.s.visit.pref ? ' · pref ' + fsEsc(e.s.visit.pref) : '') + (e ? ' · ' + fsEsc(e.c.name) : '') +
+      ' &rarr; ' + endT + ' (' + fsPlFmtMins(x.mins) + ')' + (e && e.s.visit && e.s.visit.pref ? ' · pref ' + fsEsc(e.s.visit.pref) : '') + (e ? ' · ' + fsEsc(e.c.name) : '') +
+      ((fsPlT2M(x.start) != null && fsPlT2M(x.start) < (fsPlT2M(fsPlLoadSettings().dayStart) || 420)) ? ' · <span style="color:#b45f00;font-weight:700">outside set hours</span>' : '') +
       ' · <a class="fsPlMove" data-i="' + i + '" style="cursor:pointer;text-decoration:underline">move</a>' +
       ' · <a class="fsPlDel" data-i="' + i + '" style="cursor:pointer;color:#c62828;text-decoration:underline">remove</a></div></div>';
     prev = x;
@@ -7671,7 +7766,7 @@ function fsPlWireDay() {
       const last = sorted().slice(-1)[0];
       t = last ? fsPlM2T(fsPlT2M(last.start) + last.mins + (+fsPlLoadSettings().buffer || 0) + 20) : fsPlLoadSettings().dayStart;
     }
-    stops().push({ siteId: id, start: t, mins: (e.s.visit && +e.s.visit.mins) || 30, done: false });
+    stops().push({ siteId: id, start: t, mins: fsPlMinsFor(e.s, fsPlMonth), done: false });
     mo.tray = (mo.tray || []).filter(x => x.siteId !== id);
     fsPlSavePlans(); fsPlRender();
   };
