@@ -160,7 +160,7 @@
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
       <span style="font-size:21px;font-weight:800;color:#c8340f;display:inline-flex;align-items:center;gap:8px"><img src="icon-192.png" style="width:26px;height:26px;border-radius:6px" alt=""> FIRESPARK</span>
-      <span style="font-size:11px;color:#7c8a91">v0.18 beta</span>
+      <span style="font-size:11px;color:#7c8a91">v0.19 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsThemeBtn" title="Light / dark">&#127765;</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -210,7 +210,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.18 beta</span></span>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.19 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -5772,7 +5772,7 @@ function fsRenderTab() {
   if (fsTab === "history") {
     const hist = s.history || [];
     html += '<div class="fscard" style="padding:20px">';
-    html += '<h3 style="font-size:16px;font-weight:700;margin-bottom:8px">Test history</h3>';
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><h3 style="font-size:16px;font-weight:700;flex:1">Test history</h3>' + (hist.length ? '<button class="fsbtn" id="fsYearPdfBtn">&#128197; Year summary PDF</button>' : '') + '</div>';
     if (!hist.length) html += '<div style="color:var(--fs-faint);font-size:13.5px">No tests recorded yet. Open the Site Workspace and tap <b>&#9654; Start test</b>.</div>';
     hist.forEach(r => {
       const failBits = (r.checklist && r.checklist.f ? r.checklist.f : 0) + ((r.failedDevices || []).length);
@@ -5902,6 +5902,14 @@ function fsRenderTab() {
       const rec = (s.history || []).find(x => x.id === b.dataset.id);
       if (rec) fsTestPdf(rec);
     });
+    const yb = document.getElementById("fsYearPdfBtn");
+    if (yb) yb.onclick = () => {
+      const years = [...new Set((s.history || []).map(fsRecYear).filter(Boolean))].sort().reverse();
+      const y0 = years[0] || String(new Date().getFullYear());
+      const y = prompt("Year summary for which year?" + (years.length ? " (recorded: " + years.join(", ") + ")" : ""), y0);
+      if (!y || !y.trim()) return;
+      fsYearPdf(s, y.trim());
+    };
   }
 
   if (fsTab === "defects") {
@@ -6848,6 +6856,88 @@ function fsTestPdf(rec) {
     c2.fillText("FireSpark test record — page " + (i + 1) + " of " + pages.length, margin, H - 40);
   });
   deliverFile(fsCanvasesToPdf(pages), "test-" + (rec.mode || "record") + "-" + ((rec.finished || "").slice(0, 10) || "record") + ".pdf", "application/pdf");
+}
+
+/* ---------- C4.1: consolidated per-site year summary PDF (client handover) ---------- */
+function fsRecYear(r) { return String(r.year || (r.finished || "").slice(0, 4) || ""); }
+function fsLinesPdf(lines, footer, fname) {
+  const W = 1240, H = 1754, margin = 74, maxW = W - margin * 2;
+  const sizes = { h: 34, h2: 25, b: 20, t: 18, f: 18 };
+  const meas = document.createElement("canvas").getContext("2d");
+  const wrapped = [];
+  lines.forEach(([k, txt]) => {
+    meas.font = (k === "t" || k === "f" ? "" : "bold ") + sizes[k] + "px system-ui, sans-serif";
+    const words = String(txt).split(" ");
+    let cur = "";
+    words.forEach(w => {
+      const t2 = cur ? cur + " " + w : w;
+      if (meas.measureText(t2).width > maxW && cur) { wrapped.push([k, cur]); cur = "  " + w; }
+      else cur = t2;
+    });
+    wrapped.push([k, cur]);
+  });
+  const pages = [];
+  let cv2 = null, cx = null, y = 0;
+  const newPage = () => {
+    cv2 = document.createElement("canvas"); cv2.width = W; cv2.height = H;
+    cx = cv2.getContext("2d");
+    cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, W, H);
+    pages.push(cv2); y = margin;
+  };
+  newPage();
+  wrapped.forEach(([k, txt]) => {
+    const extra = (k === "h2" ? 16 : 0);
+    if (y + sizes[k] + extra > H - margin) newPage();
+    y += extra;
+    cx.fillStyle = k === "f" ? "#b71c1c" : (k === "t" ? "#333333" : "#000000");
+    cx.font = (k === "t" || k === "f" ? "" : "bold ") + sizes[k] + "px system-ui, sans-serif";
+    cx.textBaseline = "top";
+    cx.fillText(txt, margin, y);
+    if (k === "h") { cx.fillRect(margin, y + sizes[k] + 6, maxW, 3); y += 10; }
+    y += sizes[k] + 8;
+  });
+  pages.forEach((pg, i) => {
+    const c2 = pg.getContext("2d");
+    c2.fillStyle = "#888888"; c2.font = "16px system-ui, sans-serif"; c2.textBaseline = "top";
+    c2.fillText(footer + " — page " + (i + 1) + " of " + pages.length, margin, H - 40);
+  });
+  deliverFile(fsCanvasesToPdf(pages), fname, "application/pdf");
+}
+function fsYearPdf(site, year) {
+  const recs = (site.history || []).filter(r => fsRecYear(r) === String(year)).slice().sort((a, b) => String(a.finished || "").localeCompare(String(b.finished || "")));
+  const lines = [];
+  const L = (k, t) => lines.push([k, t]);
+  const dot = " · ";
+  L("h", "Test summary " + year + " — " + site.name);
+  if (fsClient) L("t", "Client: " + fsClient.name + (fsParentSite ? "   " + dot + "   Building of: " + fsParentSite.name : ""));
+  if (site.address) L("t", "Address: " + site.address);
+  L("t", "Generated " + new Date().toISOString().slice(0, 10) + " — " + recs.length + " test" + (recs.length === 1 ? "" : "s") + " recorded in " + year);
+  const cyc = FS_CYCLES.filter(c => (site.testing || {})[c.key]);
+  if (cyc.length) {
+    L("h2", "Test cycle status");
+    cyc.forEach(c => L("t", c.label + " — last done " + (site.testing || {})[c.key]));
+  }
+  L("h2", "Tests carried out in " + year);
+  if (!recs.length) L("t", "No tests recorded for " + year + ".");
+  recs.forEach(r => {
+    L("b", (r.finished || "").slice(0, 10) + " — " + (r.label || r.mode) + (r.tech ? " — " + r.tech : ""));
+    if (r.checklist) L("t", "  Checklist: " + r.checklist.p + " pass" + dot + r.checklist.f + " fail" + dot + r.checklist.na + " N/A (of " + r.checklist.total + " items)");
+    if (r.devices && r.devices.total) L("t", "  Devices tested: " + r.devices.tested + " / " + r.devices.total);
+    (r.failsChecklist || []).forEach(x => L("f", "  ✗ " + x.k + " — " + x.t + (x.note ? " — " + x.note : "")));
+    (r.failedDevices || []).forEach(d => L("f", "  ✗ Device — " + d.type + (d.zone ? " Z" + d.zone : "") + (d.loop ? " L" + d.loop : "") + (d.dev ? " D" + d.dev : "") + (d.info ? " — " + d.info : "") + (d.level ? " (" + d.level + ")" : "")));
+    if (r.obs) String(r.obs).split("\n").forEach(x => { if (x.trim()) L("t", "  Obs: " + x); });
+  });
+  const open = (site.defects || []).filter(d => !d.closed);
+  L("h2", "Open defects at " + new Date().toISOString().slice(0, 10) + " (" + open.length + ")");
+  if (!open.length) L("t", "None — no defects outstanding.");
+  open.forEach(d => L("f", "✗ " + d.desc + "  (raised " + (d.created || "").slice(0, 10) + (d.source ? dot + d.source : "") + ")"));
+  const fixed = (site.defects || []).filter(d => d.closed && String(d.closed).slice(0, 4) === String(year));
+  if (fixed.length) {
+    L("h2", "Defects rectified in " + year + " (" + fixed.length + ")");
+    fixed.forEach(d => L("t", "✓ " + d.desc + "  (closed " + String(d.closed).slice(0, 10) + ")"));
+  }
+  fsLinesPdf(lines, "FireSpark " + year + " test summary — " + site.name,
+    "test-summary-" + year + "-" + String(site.name).replace(/[^A-Za-z0-9]+/g, "-").toLowerCase() + ".pdf");
 }
 
 (async () => {
