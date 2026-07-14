@@ -1,4 +1,4 @@
-const CACHE = "fs-v23";
+const CACHE = "fs-v24";
 const ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon-180.png", "./icon-192.png", "./icon-512.png", "./pdf.min.js", "./pdf.worker.min.js"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
@@ -13,6 +13,9 @@ self.addEventListener("activate", e => {
 });
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
+  // NEVER intercept cross-origin calls (geocoding/routing APIs): ignoreSearch matching
+  // was serving the FIRST map lookup's cached answer for EVERY site (C7.1 fix)
+  if (new URL(e.request.url).origin !== location.origin) return;
   e.respondWith(
     caches.match(e.request, { ignoreSearch: true }).then(hit =>
       hit ||
