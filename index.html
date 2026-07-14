@@ -63,7 +63,7 @@
   #sizeWrap { display:flex; align-items:center; gap:5px; font-size:12px; color:#aaa; }
   #sizeWrap input { width:90px; }
   #swatches { display:flex; align-items:center; gap:5px; }
-  .swatch { width:22px; height:22px; border-radius:50%; border:2px solid #555; cursor:pointer; flex:0 0 auto; }
+  .swatch { width:22px; height:22px; border-radius:50%; border:2px solid #555; cursor:pointer; flex:0 0 auto; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
   .swatch.active { border-color:#fff; box-shadow:0 0 0 2px #ff5a3c; }
   .spacer { flex:1; }
   #status { font-size:11px; color:#888; width:100%; }
@@ -150,6 +150,7 @@
   .fslabel { font-size:12px; color:var(--fs-sub); margin:10px 0 3px; font-weight:600; }
   @media (max-width:720px) {
     #fsReg .wrap { padding:12px 10px 70px; }
+    .fsCyc { flex:1 1 42% !important; min-width:0 !important; }
     #fsReg h1 { font-size:24px !important; }
     .fstab { margin-right:14px; font-size:13.5px; padding:12px 2px; }
     .fsbtnP, .fsbtn { padding:12px 14px; }
@@ -159,7 +160,7 @@
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
       <span style="font-size:21px;font-weight:800;color:#c8340f;display:inline-flex;align-items:center;gap:8px"><img src="icon-192.png" style="width:26px;height:26px;border-radius:6px" alt=""> FIRESPARK</span>
-      <span style="font-size:11px;color:#7c8a91">v0.17 beta</span>
+      <span style="font-size:11px;color:#7c8a91">v0.18 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsThemeBtn" title="Light / dark">&#127765;</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -181,12 +182,13 @@
 
     <div id="fsClientsView" style="display:none">
       <input type="text" id="fsSearch" class="fsinput" placeholder="Search clients &amp; sites…" style="padding:13px;font-size:15px;margin-bottom:14px">
+      <div style="text-align:right;margin:-4px 0 10px"><button class="fsbtn" id="fsAddClientBtn">&#65291; Add client</button></div>
       <div id="fsClientList"></div>
     </div>
 
     <div id="fsSitesView" style="display:none">
       <div style="margin-bottom:12px"><a id="fsBackClients" style="color:#0f5e6b;font-weight:700;cursor:pointer;font-size:15px">&#8592; All clients</a></div>
-      <h2 id="fsClientTitle" style="font-size:20px;margin-bottom:12px"></h2>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><h2 id="fsClientTitle" style="font-size:20px;flex:1"></h2><button class="fsbtn" id="fsAddSiteBtn">&#65291; Add site</button></div>
       <div id="fsSiteList"></div>
     </div>
 
@@ -208,7 +210,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.17 beta</span></span>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.18 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -2903,6 +2905,7 @@ function attachSwatchGestures(el, col, isTemp) {
   el.addEventListener("click", e => {
     if (suppress) { suppress = false; e.stopImmediatePropagation(); e.preventDefault(); }
   }, true);
+  el.addEventListener("contextmenu", e => { e.preventDefault(); });   /* C4: phone long-press must reach the 2s remove timer, not a context menu */
   el.addEventListener("pointerdown", e => {
     down = true; suppress = false;
     x0 = e.clientX; y0 = e.clientY;
@@ -5194,6 +5197,7 @@ function renderExportCanvas() {
   const zones = zoneCounts();
   const zoneKeys = Object.keys(zones).filter(z => z !== "(no zone)").sort((a, b) => a.localeCompare(b, undefined, { numeric:true }));
   if (!used.length) return out;
+  if (activeTool !== "test") return out;   /* C4: non-test export = plan only, no legend strip */
 
   const testExport = activeTool === "test";   // test-mode export: badge key only, no counts/zones
   const lh = Math.max(34, Math.round(out.width * 0.028));
@@ -5646,9 +5650,9 @@ function fsRenderSite() {
 
   // status strip - compact (testing info shouldn't steal the show; Overview is the main event)
   html += '<div class="fscard" style="display:flex;flex-wrap:wrap;align-items:stretch;margin-bottom:14px">';
-  FS_CYCLES.forEach((c, i) => {
+  FS_CYCLES.filter(c => c.key !== "last5y" || (s.testing || {})[c.key]).forEach((c, i) => {
     const st = fsCycleStatus(s, c);
-    html += '<div style="flex:1;min-width:118px;padding:7px 12px;' + (i ? 'border-left:1px solid var(--fs-border)' : '') + '">' +
+    html += '<div class="fsCyc" style="flex:1;min-width:118px;padding:7px 12px;' + (i ? 'border-left:1px solid var(--fs-border)' : '') + '">' +
       '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase">' + c.label + '</div>' +
       '<div style="font-size:12.5px;font-weight:700;color:' + st.col + ';margin:1px 0 2px;white-space:nowrap">' + st.txt + '</div>' +
       '<input type="date" class="fsCycDate" data-key="' + c.key + '" value="' + fsEsc((s.testing || {})[c.key] || "") + '" title="Last done" style="border:1px solid var(--fs-border);border-radius:5px;padding:1px 2px;font-size:10px;color:var(--fs-sub2);background:transparent;max-width:110px">' +
@@ -6193,6 +6197,29 @@ try {
 
 document.getElementById("fsSearch").addEventListener("input", fsRenderClients);
 document.getElementById("fsBackClients").onclick = () => fsShow("fsClientsView");
+/* C4: add client / add site (ids collision-safe like buildings) */
+document.getElementById("fsAddClientBtn").onclick = () => {
+  if (!fsRegister) fsLoadRegister({ app:"firespark-register", version:1, clients:[] });
+  const nm = prompt("New client name:");
+  if (!nm || !nm.trim()) return;
+  fsRegister.clients = fsRegister.clients || [];
+  let n = fsRegister.clients.length;
+  while (fsRegister.clients.some(c => c.id === "c" + n)) n++;
+  fsRegister.clients.push({ id:"c" + n, name:nm.trim(), sites:[] });
+  fsMarkDirty();
+  fsRenderClients();
+};
+document.getElementById("fsAddSiteBtn").onclick = () => {
+  if (!fsClient) return;
+  const nm = prompt("New site name:");
+  if (!nm || !nm.trim()) return;
+  fsClient.sites = fsClient.sites || [];
+  let n = fsClient.sites.length;
+  while (fsClient.sites.some(x => x.id === fsClient.id + "_s" + n)) n++;
+  fsClient.sites.push({ id:fsClient.id + "_s" + n, name:nm.trim(), equipment:{}, testing:{} });
+  fsMarkDirty();
+  fsRenderSites();
+};
 
 /* ---------- workspace context ---------- */
 let fsSiteCtx = null;
@@ -6545,7 +6572,9 @@ function fsFinishTest() {
     (devAll.length ? "\nDevices: " + tested + " / " + devAll.length + " tested (" + yr + ")" : "") +
     (dedup ? "\n" + dedup + " already-open defect" + (dedup > 1 ? "s" : "") + " re-confirmed (no duplicates created)." : "") +
     (openNow ? "\nOpen defects now: " + openNow : "") +
-    "\n\nRemember to Export register so colleagues get the record.");
+    "\n\nSaved to the Test history tab on the site page - open it any time to export the PDF." +
+    "\nRemember to Export register so colleagues get the record.");
+  if (confirm("Save the test report PDF now?")) fsTestPdf(rec);
 }
 
 document.getElementById("fsTestBtn").onclick = fsOpenTest;
