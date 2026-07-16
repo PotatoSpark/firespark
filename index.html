@@ -161,7 +161,7 @@
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span style="font-size:21px;font-weight:800;color:#c8340f;display:inline-flex;align-items:center;gap:8px"><img src="icon-192.png" style="width:26px;height:26px;border-radius:6px" alt=""> FIRESPARK</span>
-      <span style="font-size:11px;color:#7c8a91">v0.26 beta</span>
+      <span style="font-size:11px;color:#7c8a91">v0.27 beta</span>
       <span id="fsCoBadge" style="display:none;font-size:12px;font-weight:600;color:#7c8a91;border:1px solid #d5dde1;border-radius:20px;padding:2px 10px"></span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsThemeBtn" title="Light / dark">&#127765;</button>
@@ -215,7 +215,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.26 beta</span></span>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.27 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -497,6 +497,18 @@
 <div class="modal" id="fsBinModal">
   <div class="modalbox" style="max-width:560px;width:94vw;max-height:80vh;overflow-y:auto;text-align:left">
     <div id="fsBinBody"></div>
+  </div>
+</div>
+<div class="modal" id="fsProfModal" style="z-index:120">
+  <div class="modalbox" style="max-width:430px;width:94vw;text-align:left">
+    <h3 style="margin-bottom:4px">Company profile</h3>
+    <div id="fsProfInfo" style="font-size:13.5px;color:#aaa;margin-bottom:14px"></div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <button class="btn" id="fsProfLoad">&#128194; Load a profile file (replaces current)</button>
+      <button class="btn" id="fsProfExport">&#128190; Export profile file (share company setup &mdash; no client data)</button>
+      <button class="btn" id="fsProfUnload" style="color:#ff8a80">&#10005; Unload profile from this device</button>
+      <button class="btn" id="fsProfClose">Close</button>
+    </div>
   </div>
 </div>
 <div class="modal" id="fsBakModal" style="z-index:120">
@@ -5580,7 +5592,7 @@ const FS_CYCLES = [
 ];
 const FS_EQUIP_FIELDS = [
   "Panel location", "Panel type", "Panel battery type / size", "Panel instructions", "Detectors", "EWIS location", "EWIS type",
-  "OWS / speaker notes", "Fire extinguisher locations", "Fire extinguisher type", "Fire doors", "Hose reel locations",
+  "OWS / speaker notes", "Fire extinguisher locations", "Fire extinguisher", "Fire doors", "Hose reel locations",
   "Hydrant / booster location", "Pump room location", "Sprinkler valve room",
   "Exit lights", "Emergency lights", "Gas suppression", "Other equipment"
 ];
@@ -5588,6 +5600,21 @@ const FS_EQUIP_FIELDS = [
 /* ---------- Company profile: branding + equipment fields + checklists live in a LOCAL
    profile file (never in this public shell). Load via the Profile button. ---------- */
 let fsProfile = null;
+const FS_EQUIP_ITEMS = ["Fire extinguisher", "Detectors", "Exit lights", "Emergency lights", "OWS / speaker notes", "Hose reel locations", "Fire doors"];
+function fsEquipItemFields() {
+  return (fsProfile && Array.isArray(fsProfile.equipmentItems) && fsProfile.equipmentItems.length) ? fsProfile.equipmentItems : FS_EQUIP_ITEMS;
+}
+function fsEquipMigrateKeys(s) {
+  const eq = s.equipment;
+  let ch = false;
+  if (eq && eq["Fire extinguisher type"] && !eq["Fire extinguisher"]) {
+    eq["Fire extinguisher"] = eq["Fire extinguisher type"];
+    delete eq["Fire extinguisher type"];
+    ch = true;
+  }
+  (s.buildings || []).forEach(b => { if (fsEquipMigrateKeys(b)) ch = true; });
+  return ch;
+}
 function fsEquipFields() {
   return (fsProfile && Array.isArray(fsProfile.equipment) && fsProfile.equipment.length) ? fsProfile.equipment : FS_EQUIP_FIELDS;
 }
@@ -5601,7 +5628,10 @@ async function fsLoadProfile() {
   let p = null;
   if (fsRegister && fsRegister.profile && fsRegister.profile.app === "firespark-profile") p = fsRegister.profile;
   if (!p) { try { const c = await idbGet("fsProfile"); if (c && c.app === "firespark-profile") p = c; } catch (e) {} }
-  if (p) fsProfile = p;
+  if (p) {
+    if (Array.isArray(p.equipment)) p.equipment = p.equipment.map(k => k === "Fire extinguisher type" ? "Fire extinguisher" : k);
+    fsProfile = p;
+  }
   fsApplyProfile();
 }
 function fsProfileFromFile(obj) {
@@ -5633,6 +5663,7 @@ function fsEnsureIds() {
     if (!c.id) c.id = "c" + ci;
     (c.sites || []).forEach((s, si) => {
       if (!s.id) s.id = c.id + "_s" + si;
+      if (fsEquipMigrateKeys(s)) migrated = true;
       (s.buildings || []).forEach((b, bi) => {
         if (!b.id) { b.id = s.id + "_b" + bi; migrated = true; }
       });
@@ -5653,6 +5684,7 @@ function fsStamp() {
   ex.style.display = fsRegister ? "inline-block" : "none";
   document.getElementById("fsPlannerBtn").style.display = fsRegister ? "inline-block" : "none";
   ex.innerHTML = "&#128190; " + ((typeof fsRegFileHandle !== "undefined" && fsRegFileHandle) ? "Save register" : "Export register");
+  ex.title = "Saves the WHOLE register file \u2014 client data + company profile + test checklists in one. To share just the company setup, use Profile \u2192 Export profile.";
 }
 
 function fsCycleStatus(site, cyc) {
@@ -5717,6 +5749,10 @@ function fsInfoPhotoHtml() {
   html += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">';
   html += '<div class="fscard" style="flex:2;min-width:300px;padding:20px">';
   html += '<div style="display:flex;align-items:center;margin-bottom:8px"><h3 style="font-size:17px;font-weight:700;flex:1">Site information</h3><a id="fsInfoEditBtn" style="color:var(--fs-accent);font-weight:700;cursor:pointer">' + (fsInfoEdit ? 'Save' : 'Edit') + '</a></div>';
+  if (fsInfoEdit) {
+    html += '<div class="fslabel">' + (fsParentSite ? 'Building name' : 'Site name') + '</div><input class="fsinput" id="fsSiteNameIn" autocomplete="off" value="' + fsEsc(s.name || "") + '">';
+    html += '<div class="fslabel">Address (shown under the site name)</div><input class="fsinput" id="fsSiteAddrIn" autocomplete="off" value="' + fsEsc(s.address || "") + '">';
+  }
   const infoRows = [["Access requirements", "access"], ["Contacts", "contacts"], ["Further information", "furtherInfo"]];
   infoRows.forEach(([label, key]) => {
     if (fsInfoEdit) {
@@ -5888,12 +5924,15 @@ function fsRenderTab() {
           '<button class="fsbtn fsEquipPhoto" data-key="' + fsEsc(k) + '" style="padding:6px 9px">&#128247;</button>' +
           (en.photo ? '<button class="fsbtn fsEquipPhotoDel" data-key="' + fsEsc(k) + '" style="padding:6px 9px;color:#c62828">&#128465;</button>' : '') +
           '</div>' +
+          (fsEquipItemFields().includes(k) ? fsEqItemsEditHtml(k, en) : '') +
           '<textarea class="fsinput fsEquipField" data-key="' + fsEsc(k) + '" rows="1" placeholder="Details (optional)" style="margin:4px 0 6px">' + fsEsc(en.v || "") + '</textarea>' +
           (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:150px;max-height:100px;border-radius:8px;margin-bottom:6px;cursor:pointer" title="Tap to view full size">' : '');
-      } else if (en.on || en.v || en.photo) {
+      } else if (en.on || en.v || en.photo || (en.items || []).length) {
         shown++;
+        const its = (en.items || []).filter(x => x && (x.t || x.q));
         html += '<div style="border-top:1px solid var(--fs-border);padding:11px 0">' +
           '<div style="font-weight:700;font-size:14.5px"><span style="color:#1b8a3f">&#10003;</span> ' + k + '</div>' +
+          (its.length ? '<div style="font-size:13.5px;font-weight:600;margin-top:3px">' + its.map(x => fsEsc((x.q ? x.q + " \u00d7 " : "") + (x.t || ""))).join("<br>") + '</div>' : '') +
           (en.v ? '<div style="font-size:13.5px;color:var(--fs-sub);white-space:pre-wrap;margin-top:3px">' + fsEsc(en.v) + '</div>' : '') +
           (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '') + '</div>';
       }
@@ -5990,6 +6029,9 @@ function fsRenderTab() {
   if (fsTab === "overview") {
     document.getElementById("fsInfoEditBtn").onclick = () => {
       if (fsInfoEdit) {
+        const nmIn = document.getElementById("fsSiteNameIn"), adIn = document.getElementById("fsSiteAddrIn");
+        if (nmIn && nmIn.value.trim()) s.name = nmIn.value.trim();
+        if (adIn) s.address = adIn.value.trim();
         document.querySelectorAll(".fsInfoField").forEach(f => { s[f.dataset.key] = f.value.trim(); });
         const vd = {}, vh = {}, vm2 = {};
         document.querySelectorAll(".fsVisD").forEach(f => { vd[f.dataset.key] = +f.value || 0; });
@@ -6132,6 +6174,18 @@ function fsRenderTab() {
       document.getElementById("fsEquipEditBtn").onclick && 0;
       fsRenderSite();
     };
+    document.querySelectorAll(".fsEqItAdd").forEach(b => {
+      b.onclick = () => { fsSaveEquipDraft(); fsMarkDirty(); fsRenderTab(); };
+    });
+    document.querySelectorAll(".fsEqItDel").forEach(b => {
+      b.onclick = () => {
+        fsSaveEquipDraft();
+        const en = fsSite.equipment[b.dataset.key];
+        if (en && en.items) en.items.splice(+b.dataset.i, 1);
+        fsMarkDirty();
+        fsRenderTab();
+      };
+    });
     document.querySelectorAll(".fsEquipPhoto").forEach(b => {
       b.onclick = () => { fsSaveEquipDraft(); fsPhotoTarget = { kind:"equip", key:b.dataset.key }; document.getElementById("fsPhotoInput").click(); };
     });
@@ -6193,7 +6247,40 @@ function fsRenderTab() {
     im.onclick = () => fsViewPhoto(im.src);
   });
 }
+function fsEqItemsEditHtml(k, en) {
+  const items = Array.isArray(en.items) ? en.items : [];
+  let h2 = '<div style="margin:2px 0 4px 28px">';
+  items.forEach((it, ii) => {
+    h2 += '<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">' +
+      '<input class="fsinput fsEqItT" data-key="' + fsEsc(k) + '" data-i="' + ii + '" placeholder="Type (e.g. CO2 4.5kg)" value="' + fsEsc(it.t || "") + '" style="flex:2;margin:0">' +
+      '<input class="fsinput fsEqItQ" data-key="' + fsEsc(k) + '" data-i="' + ii + '" type="number" min="0" placeholder="Qty" value="' + fsEsc(it.q || "") + '" style="width:76px;margin:0">' +
+      '<a class="fsEqItDel" data-key="' + fsEsc(k) + '" data-i="' + ii + '" style="color:#c62828;cursor:pointer;padding:4px 7px" title="Remove this type">&#10005;</a></div>';
+  });
+  h2 += '<div style="display:flex;gap:6px;align-items:center">' +
+    '<input class="fsinput fsEqItNewT" data-key="' + fsEsc(k) + '" placeholder="Type (e.g. CO2 4.5kg)" style="flex:2;margin:0">' +
+    '<input class="fsinput fsEqItNewQ" data-key="' + fsEsc(k) + '" type="number" min="0" placeholder="Qty" style="width:76px;margin:0">' +
+    '<button class="fsbtn fsEqItAdd" data-key="' + fsEsc(k) + '" style="padding:6px 10px;flex:0 0 auto">&#65291; Add</button></div></div>';
+  return h2;
+}
 function fsSaveEquipDraft() {
+  document.querySelectorAll(".fsEqItT").forEach(f => {
+    const en = fsSite.equipment[f.dataset.key];
+    if (en && en.items && en.items[+f.dataset.i]) en.items[+f.dataset.i].t = f.value.trim();
+  });
+  document.querySelectorAll(".fsEqItQ").forEach(f => {
+    const en = fsSite.equipment[f.dataset.key];
+    if (en && en.items && en.items[+f.dataset.i]) en.items[+f.dataset.i].q = f.value.trim();
+  });
+  document.querySelectorAll(".fsEqItNewT").forEach(f => {
+    const qEl = document.querySelector('.fsEqItNewQ[data-key="' + (window.CSS && CSS.escape ? CSS.escape(f.dataset.key) : f.dataset.key) + '"]');
+    const t = f.value.trim(), q = qEl ? qEl.value.trim() : "";
+    if (t || q) {
+      const en = fsSite.equipment[f.dataset.key] = fsSite.equipment[f.dataset.key] || {};
+      en.items = en.items || [];
+      en.items.push({ t: t, q: q });
+      en.on = true;
+    }
+  });
   document.querySelectorAll(".fsEquipField").forEach(f => {
     const k = f.dataset.key;
     fsSite.equipment[k] = fsSite.equipment[k] || {};
@@ -6323,8 +6410,8 @@ document.getElementById("fsPhotoInput").addEventListener("change", e => {
 let fsRegFileHandle = null;
 function fsLoadRegister(objIn) {
   fsRegister = objIn;
-  fsEnsureIds();
   fsDirty = false;
+  fsEnsureIds();   // may set fsDirty if data was migrated (save to keep it)
   idbPut("fsRegister", fsRegister).catch(() => alert("⚠ Couldn't cache the register on this device (storage full?) — it will need reloading next time."));
   fsBackupSnapshot("loaded");
   fsLoadProfile();
@@ -6888,7 +6975,33 @@ document.getElementById("znRezone").onclick = () => {
 document.getElementById("znShow").onchange = e => { zonesShow = e.target.checked; draw(); };
 
 document.getElementById("fsTestBtn").onclick = fsOpenTest;
-document.getElementById("fsProfileBtn").onclick = () => document.getElementById("fsProfileInput").click();
+document.getElementById("fsProfileBtn").onclick = () => {
+  if (!fsProfile) { document.getElementById("fsProfileInput").click(); return; }
+  document.getElementById("fsProfInfo").textContent = (fsCoName() || "Unnamed profile") +
+    (fsProfile.updated ? " \u00b7 updated " + fsProfile.updated : "") +
+    (fsProfile.checklists && fsProfile.checklists.modes ? " \u00b7 includes test checklists" : "");
+  document.getElementById("fsProfModal").classList.add("show");
+};
+document.getElementById("fsProfClose").onclick = () => document.getElementById("fsProfModal").classList.remove("show");
+document.getElementById("fsProfLoad").onclick = () => {
+  document.getElementById("fsProfModal").classList.remove("show");
+  document.getElementById("fsProfileInput").click();
+};
+document.getElementById("fsProfExport").onclick = () => {
+  if (!fsProfile) return;
+  const nm = "firespark-profile-" + (fsCoName() || "company").toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + new Date().toISOString().slice(0, 10) + ".json";
+  deliverFile(new Blob([JSON.stringify(fsProfile)], { type:"application/json" }), nm, "application/json");
+  document.getElementById("fsProfModal").classList.remove("show");
+};
+document.getElementById("fsProfUnload").onclick = () => {
+  if (!confirm("Unload the company profile from this device?\n\nBranding and the company equipment list revert to the built-in defaults. Test checklists already saved in the register are kept. The profile file itself is not deleted \u2014 you can load it again any time.")) return;
+  fsProfile = null;
+  idbDel("fsProfile").catch(() => {});
+  if (fsRegister && fsRegister.profile) { delete fsRegister.profile; fsMarkDirty(); }
+  fsApplyProfile();
+  document.getElementById("fsProfModal").classList.remove("show");
+  if (fsSite && fsTab === "equip") fsRenderTab();
+};
 document.getElementById("fsProfileInput").addEventListener("change", e => {
   const file = e.target.files[0];
   e.target.value = "";
