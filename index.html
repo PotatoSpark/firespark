@@ -161,10 +161,12 @@
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span style="font-size:21px;font-weight:800;color:#c8340f;display:inline-flex;align-items:center;gap:8px"><img src="icon-192.png" style="width:26px;height:26px;border-radius:6px" alt=""> FIRESPARK</span>
-      <span style="font-size:11px;color:#7c8a91">v0.24 beta</span>
+      <span style="font-size:11px;color:#7c8a91">v0.25 beta</span>
+      <span id="fsCoBadge" style="display:none;font-size:12px;font-weight:600;color:#7c8a91;border:1px solid #d5dde1;border-radius:20px;padding:2px 10px"></span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsThemeBtn" title="Light / dark">&#127765;</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
+      <button class="fsbtn" id="fsProfileBtn" title="Load your company profile file (branding + equipment fields + test checklists)">&#127970; Profile</button>
       <button class="fsbtn" id="fsBackupsBtn" title="Register backups kept on this device">&#128336;</button>
       <button class="fsbtn" id="fsPlannerBtn" style="display:none" title="Monthly planner + day routes">&#128197; Planner</button>
       <button class="fsbtn" id="fsExportReg" style="display:none">&#128190; Export register</button>
@@ -213,7 +215,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.24 beta</span></span>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.25 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -478,6 +480,7 @@
   </div>
 </div>
 <input type="file" id="fsCkInput" accept=".json,application/json" style="display:none">
+<input type="file" id="fsProfileInput" accept=".json,application/json" style="display:none">
 <div class="modal" id="fsAssetModal">
   <div class="modalbox" style="max-width:520px;width:94vw;text-align:left">
     <div id="fsAssetBody"></div>
@@ -5400,6 +5403,42 @@ const FS_EQUIP_FIELDS = [
   "Exit lights", "Emergency lights", "Gas suppression", "Other equipment"
 ];
 
+/* ---------- Company profile: branding + equipment fields + checklists live in a LOCAL
+   profile file (never in this public shell). Load via the Profile button. ---------- */
+let fsProfile = null;
+function fsEquipFields() {
+  return (fsProfile && Array.isArray(fsProfile.equipment) && fsProfile.equipment.length) ? fsProfile.equipment : FS_EQUIP_FIELDS;
+}
+function fsCoName() { return (fsProfile && fsProfile.company && fsProfile.company.name) || ""; }
+function fsDocBrand() { return fsCoName() || "FireSpark"; }
+function fsApplyProfile() {
+  const el = document.getElementById("fsCoBadge");
+  if (el) { const n = fsCoName(); el.textContent = n; el.style.display = n ? "inline-block" : "none"; }
+}
+async function fsLoadProfile() {
+  let p = null;
+  if (fsRegister && fsRegister.profile && fsRegister.profile.app === "firespark-profile") p = fsRegister.profile;
+  if (!p) { try { const c = await idbGet("fsProfile"); if (c && c.app === "firespark-profile") p = c; } catch (e) {} }
+  if (p) fsProfile = p;
+  fsApplyProfile();
+}
+function fsProfileFromFile(obj) {
+  if (!obj || obj.app !== "firespark-profile" || !obj.company) { alert("That doesn't look like a FireSpark company profile file."); return false; }
+  fsProfile = obj;
+  idbPut("fsProfile", obj).catch(() => {});
+  if (fsRegister) { fsRegister.profile = obj; fsMarkDirty(); }
+  if (obj.checklists && obj.checklists.modes) {
+    fsChecklists = obj.checklists;
+    idbPut("fsChecklists", obj.checklists).catch(() => {});
+    if (fsRegister) fsRegister.checklists = obj.checklists;
+  }
+  fsApplyProfile();
+  alert("Company profile loaded \u2713 \u2014 " + (fsCoName() || "unnamed") +
+    (obj.checklists && obj.checklists.modes ? " (includes test checklists)" : "") +
+    ". Cached on this device and saved into the register (export to share).");
+  return true;
+}
+
 function fsShow(view) {
   ["fsImportView", "fsClientsView", "fsSitesView", "fsSiteView", "fsPlannerView"].forEach(id =>
     document.getElementById(id).style.display = id === view ? "block" : "none");
@@ -5412,7 +5451,6 @@ function fsEnsureIds() {
     if (!c.id) c.id = "c" + ci;
     (c.sites || []).forEach((s, si) => {
       if (!s.id) s.id = c.id + "_s" + si;
-      if (fsMigrateLegacy(s)) migrated = true;
       (s.buildings || []).forEach((b, bi) => {
         if (!b.id) { b.id = s.id + "_b" + bi; migrated = true; }
       });
@@ -5421,144 +5459,6 @@ function fsEnsureIds() {
   if (migrated) { fsDirty = true; idbPut("fsRegister", fsRegister).catch(() => {}); }
 }
 
-/* Map old register fields{} / panelInstructions / additionalInfo into the new
-   Access / Contacts / Further info / Site Equipment fields. Originals are kept. */
-function fsMigrateLegacy(s) {
-  if (s._migr >= 6) return false;
-  const wasV5 = s._migr >= 5;
-  const wasV4 = s._migr >= 4;
-  s._migr = 6;
-  let changed = false;
-  if (wasV5) return fsMigrV6(s);   // already fully migrated to v5 — only the v6 checkbox step is new
-  // v5: earlier migrations put "Extinguisher Type" under locations and panelInstructions in Further info — relocate
-  if (wasV4) {
-    let pairs5 = [];
-    if (Array.isArray(s.fields)) pairs5 = s.fields.map(f => [(f && (f.label || f.k)) || "", (f && (f.value || f.v)) || ""]);
-    else pairs5 = Object.entries(s.fields || {});
-    pairs5.forEach(([k, v]) => {
-      if (!v || typeof v === "object") return;
-      if (/exting.*type/i.test(String(k)) && s.equipment && s.equipment["Fire extinguisher locations"]) {
-        const cur = s.equipment["Fire extinguisher locations"];
-        if ((cur.v || "").includes(v)) {
-          cur.v = cur.v.split("\n").filter(l => l.trim() !== String(v).trim()).join("\n");
-          if (!cur.v && !cur.photo) delete s.equipment["Fire extinguisher locations"];
-          changed = true;
-        }
-      }
-    });
-    if (s.panelInstructions && typeof s.furtherInfo === "string" && s.furtherInfo.includes(s.panelInstructions)) {
-      s.furtherInfo = s.furtherInfo.split("\n").filter(l => !l.includes(s.panelInstructions) || !/^Panel instructions/i.test(l)).join("\n");
-      changed = true;
-    }
-  }
-  // photos from the old site-register app are {label, data:dataURL} — convert to {src, label}
-  if (Array.isArray(s.photos) && s.photos.some(p => p && typeof p === "object" && p.data)) {
-    s.photos = s.photos.map(p => (p && typeof p === "object" && p.data) ? { src: p.data, label: p.label || "" } : p)
-      .filter(p => (typeof p === "string" && p) || (p && p.src));
-    changed = true;
-  }
-  if (!s.photo) {
-    const si = (s.photos || []).find(p => p && p.src && /site\s*(image|photo)/i.test(p.label || ""));
-    if (si) { s.photo = si.src; changed = true; }
-  }
-  // "Panel Photo" from the old register attaches to the Panel location equipment field
-  const pp = (s.photos || []).find(p => p && p.src && /panel/i.test(p.label || ""));
-  if (pp) {
-    s.equipment = s.equipment || {};
-    const cur0 = s.equipment["Panel location"] || {};
-    if (!cur0.photo) { cur0.photo = pp.src; s.equipment["Panel location"] = cur0; changed = true; }
-  }
-  // clean junk lines written by the v1 migration when fields was a list ("0: [object Object]")
-  ["access", "contacts", "furtherInfo"].forEach(prop => {
-    if (typeof s[prop] === "string" && s[prop].includes("[object Object]")) {
-      const cleaned = s[prop].split("\n").filter(l => !l.includes("[object Object]")).join("\n");
-      if (cleaned !== s[prop]) { s[prop] = cleaned; changed = true; }
-    }
-  });
-  if (typeof s.address === "string" && s.address.includes("[object Object]")) { s.address = ""; changed = true; }
-  Object.keys(s.equipment || {}).forEach(k => {
-    const cur = s.equipment[k];
-    if (cur && typeof cur.v === "string" && cur.v.includes("[object Object]")) {
-      cur.v = cur.v.split("\n").filter(l => !l.includes("[object Object]")).join("\n");
-      changed = true;
-    }
-  });
-  const app = (prop, label, val) => {
-    if (!val) return;
-    const line = (label ? label + ": " : "") + val;
-    if ((s[prop] || "").includes(val)) return;
-    s[prop] = s[prop] ? s[prop] + "\n" + line : line;
-    changed = true;
-  };
-  const eq = (key, label, val) => {
-    if (!val) return;
-    s.equipment = s.equipment || {};
-    const cur = s.equipment[key] || {};
-    if ((cur.v || "").includes(val)) return;
-    const line = (label ? label + ": " : "") + val;
-    cur.v = cur.v ? cur.v + "\n" + line : line;
-    s.equipment[key] = cur;
-    changed = true;
-  };
-  // fields can be {key:value} (old dict) OR [{label,value}] (site-register app format)
-  let pairs = [];
-  if (Array.isArray(s.fields)) pairs = s.fields.map(f => [(f && (f.label || f.k)) || "", (f && (f.value || f.v)) || ""]);
-  else pairs = Object.entries(s.fields || {});
-  pairs.forEach(([k, v]) => {
-    if (v == null || v === "" || typeof v === "object") return;
-    v = String(v);
-    k = String(k || "");
-    const lk = k.toLowerCase();
-    if (/address/.test(lk)) { if (!s.address) { s.address = v; changed = true; } return; }
-    if (/prefer.*test|test.*time/.test(lk)) return app("access", k, v);
-    if (/access|induction|key|sign.?in|swipe|entry/.test(lk)) return app("access", k, v);
-    if (/contact|phone|mobile|email|\bfm\b|manager/.test(lk)) return app("contacts", k, v);
-    if (/panel.*loc|fip.*loc|location.*(panel|fip)/.test(lk)) return eq("Panel location", "", v);
-    if (/panel.*type|fip.*type|\bcie\b/.test(lk)) return eq("Panel type", "", v);
-    if (/panel.*instruct/.test(lk)) return eq("Panel instructions", "", v);
-    if (/batter/.test(lk)) return eq("Panel battery type / size", "", v);
-    if (/ewis|warden/.test(lk)) return eq("EWIS location", k, v);
-    if (/\bows\b|speaker|sound/.test(lk)) return eq("OWS / speaker notes", k, v);
-    if (/fire.*door/.test(lk)) return eq("Fire doors", "", v);
-    if (/exting.*type/.test(lk)) return eq("Fire extinguisher type", "", v);
-    if (/exting/.test(lk)) return eq("Fire extinguisher locations", "", v);
-    if (/hose/.test(lk)) return eq("Hose reel locations", "", v);
-    if (/hydrant|booster/.test(lk)) return eq("Hydrant / booster location", "", v);
-    if (/pump/.test(lk)) return eq("Pump room location", "", v);
-    if (/sprinkler|valve/.test(lk)) return eq("Sprinkler valve room", "", v);
-    if (/exit.*light|exit.*sign/.test(lk)) return eq("Exit lights", k, v);
-    if (/light/.test(lk)) return eq("Emergency lights", k, v);
-    if (/gas|suppress/.test(lk)) return eq("Gas suppression", k, v);
-    if (/panel|fip/.test(lk)) return eq("Panel location", k, v);
-    app("furtherInfo", k, v);
-  });
-  if (s.panelInstructions) eq("Panel instructions", "", s.panelInstructions);
-  if (s.additionalInfo) app("furtherInfo", "", s.additionalInfo);
-  if (fsMigrV6(s)) changed = true;
-  return changed;
-}
-/* v6: equipment items are checkbox-driven — en.on marks an item as present on site.
-   Existing values/photos imply present; a bare "Yes" was only a presence marker, so clear it.
-   "Emergency lighting notes" renamed to "Emergency lights". */
-function fsMigrV6(s) {
-  let changed = false;
-  s.equipment = s.equipment || {};
-  const eln = s.equipment["Emergency lighting notes"];
-  if (eln && !s.equipment["Emergency lights"]) {
-    s.equipment["Emergency lights"] = eln;
-    delete s.equipment["Emergency lighting notes"];
-    changed = true;
-  }
-  const flag = en => {
-    if (!en || typeof en !== "object") return;
-    const hasV = typeof en.v === "string" && en.v.trim() !== "";
-    if ((hasV || en.photo) && !en.on) { en.on = true; changed = true; }
-    if (hasV && /^(yes|y)\.?$/i.test(en.v.trim())) { en.v = ""; changed = true; }
-  };
-  Object.values(s.equipment).forEach(flag);
-  (s.equipCustom || []).forEach(flag);
-  return changed;
-}
 function fsMarkDirty() { fsDirty = true; fsStamp(); idbPut("fsRegister", fsRegister).catch(() => {}); }
 function fsStamp() {
   const el = document.getElementById("fsRegStamp");
@@ -5701,7 +5601,7 @@ function fsRenderSite() {
   const s = fsSite;
   s.equipment = s.equipment || {};
   const wrap = document.getElementById("fsSiteView");
-  const addr = s.address || (s.fields && (s.fields.Address || s.fields.address)) || "";
+  const addr = s.address || "";
 
   let html = '<div style="margin-bottom:14px"><a id="fsBackSites" style="color:var(--fs-accent);font-weight:700;cursor:pointer;font-size:15px">&#8592; ' + fsEsc(fsParentSite ? fsParentSite.name : fsClient.name) + '</a></div>';
   html += '<div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px">';
@@ -5797,7 +5697,7 @@ function fsRenderTab() {
     html += '<div style="display:flex;align-items:center;margin-bottom:8px"><h3 style="font-size:16px;font-weight:700;flex:1">Site equipment</h3><a id="fsEquipEditBtn" style="color:var(--fs-accent);font-weight:700;cursor:pointer">' + (fsEquipEdit ? 'Save' : 'Edit') + '</a></div>';
     let shown = 0;
     if (fsEquipEdit) html += '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:6px">Tick what the site has — ticked items show on the Overview. Details and photos are optional.</div>';
-    FS_EQUIP_FIELDS.forEach(k => {
+    fsEquipFields().forEach(k => {
       const en = s.equipment[k] || {};
       if (fsEquipEdit) {
         html += '<div style="display:flex;align-items:center;gap:9px;border-top:1px solid var(--fs-border);padding:9px 0 2px">' +
@@ -6245,6 +6145,7 @@ function fsLoadRegister(objIn) {
   fsDirty = false;
   idbPut("fsRegister", fsRegister).catch(() => alert("⚠ Couldn't cache the register on this device (storage full?) — it will need reloading next time."));
   fsBackupSnapshot("loaded");
+  fsLoadProfile();
   fsStamp();
   fsRenderClients();
   fsShow("fsClientsView");
@@ -6399,7 +6300,7 @@ function fsEnterWorkspace() {
   document.getElementById("app").style.display = "flex";
   document.getElementById("fsSiteName").textContent = fsSiteCtx.siteName;
   fsBinBtnRefresh();
-  fsLoadChecklists().then(fsRestoreSession);
+  fsLoadProfile().then(fsLoadChecklists).then(fsRestoreSession);
   resizeCanvas();
   tryRestoreAutosave();
 }
@@ -6774,6 +6675,18 @@ function fsFinishTest() {
 }
 
 document.getElementById("fsTestBtn").onclick = fsOpenTest;
+document.getElementById("fsProfileBtn").onclick = () => document.getElementById("fsProfileInput").click();
+document.getElementById("fsProfileInput").addEventListener("change", e => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try { if (fsProfileFromFile(JSON.parse(rd.result))) fsRenderTest(); }
+    catch (err) { alert("Could not read that file: " + err.message); }
+  };
+  rd.readAsText(file);
+});
 document.getElementById("fsCkInput").addEventListener("change", e => {
   const file = e.target.files[0];
   e.target.value = "";
@@ -7171,7 +7084,7 @@ function fsTestPdf(rec) {
     c2.textBaseline = "top";
     c2.fillStyle = LINE; c2.fillRect(M, H - 58, CW, 1);
     c2.fillStyle = "#98a1a9"; c2.font = F(14);
-    c2.fillText("FireSpark test record · " + siteName + " · " + d10(rec.finished), M, H - 44);
+    c2.fillText(fsDocBrand() + " test record · " + siteName + " · " + d10(rec.finished), M, H - 44);
     const pt = "Page " + (i + 1) + " of " + pages.length;
     c2.fillText(pt, W - M - c2.measureText(pt).width, H - 44);
   });
@@ -7256,7 +7169,7 @@ function fsYearPdf(site, year) {
     L("h2", "Defects rectified in " + year + " (" + fixed.length + ")");
     fixed.forEach(d => L("t", "✓ " + d.desc + "  (closed " + String(d.closed).slice(0, 10) + ")"));
   }
-  fsLinesPdf(lines, "FireSpark " + year + " test summary — " + site.name,
+  fsLinesPdf(lines, fsDocBrand() + " " + year + " test summary — " + site.name,
     "test-summary-" + year + "-" + String(site.name).replace(/[^A-Za-z0-9]+/g, "-").toLowerCase() + ".pdf");
 }
 
@@ -7586,7 +7499,7 @@ function fsPlPdf() {
     const e = fsPlById(x.siteId);
     lines.push(["f", "Unplanned: " + (e ? e.s.name : x.siteId) + " — " + x.reason]);
   });
-  fsLinesPdf(lines, "FireSpark month plan — " + fsPlMonthName(), "plan-" + fsPlMonth + ".pdf");
+  fsLinesPdf(lines, fsDocBrand() + " month plan — " + fsPlMonthName(), "plan-" + fsPlMonth + ".pdf");
 }
 function fsPlNav(s) {
   // navigate by ADDRESS when we have one - maps apps resolve street addresses to the exact
@@ -7845,6 +7758,7 @@ document.getElementById("fsPlannerBtn").onclick = async () => {
       fsShow("fsClientsView");
     }
   } catch (e) {}
+  fsLoadProfile();
 })();
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
