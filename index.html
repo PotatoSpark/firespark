@@ -161,7 +161,7 @@
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span style="font-size:21px;font-weight:800;color:#c8340f;display:inline-flex;align-items:center;gap:8px"><img src="icon-192.png" style="width:26px;height:26px;border-radius:6px" alt=""> FIRESPARK</span>
-      <span style="font-size:11px;color:#7c8a91">v0.25 beta</span>
+      <span style="font-size:11px;color:#7c8a91">v0.26 beta</span>
       <span id="fsCoBadge" style="display:none;font-size:12px;font-weight:600;color:#7c8a91;border:1px solid #d5dde1;border-radius:20px;padding:2px 10px"></span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsThemeBtn" title="Light / dark">&#127765;</button>
@@ -215,7 +215,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.25 beta</span></span>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.26 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -308,6 +308,14 @@
     <div id="measureWrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:#aaa">
       <span id="measureNote">No scale &mdash; drag a line along a known distance to set it</span>
       <button class="btn" id="measureClearScale" style="display:none">Clear scale</button>
+    </div>
+    <div id="zoneWrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:#aaa;flex-wrap:wrap">Zone
+      <input type="text" id="znNum" autocomplete="off" style="width:40px;background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px" placeholder="1">
+      <input type="text" id="znName" autocomplete="off" style="width:104px;background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px" placeholder="name (optional)">
+      <button class="btn" id="znApply" disabled title="Apply number / name / current pen colour to the selected zone">Apply</button>
+      <button class="btn" id="znRezone" title="Re-check every device on this level against the zone shapes (manually-set zones are left alone)">&#8635; Re-zone items</button>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="znShow" checked> show</label>
+      <span id="znNote" style="color:#777">drag to draw a zone &mdash; devices inside get its number automatically</span>
     </div>
     <button class="btn info" id="btnDetails" disabled title="Zone / loop / device details">&#9432; Details</button>
     <button class="btn" id="btnRotate" disabled style="display:none" title="Rotate 90&deg;">&#10227;</button>
@@ -633,7 +641,8 @@ const TOOLS_TAB = [
   { id:"camera", label:"Camera",      icon:"📷" },
   { id:"photos", label:"Site photos", icon:"🖼" },
   { id:"find",    label:"Find device", icon:"🔎" },
-  { id:"measure", label:"Measure",     icon:"📏" }
+  { id:"measure", label:"Measure",     icon:"📏" },
+  { id:"zones",   label:"Zones (ZN)",  icon:"⬠" }
 ];
 const MARKUP_TOOLS = [
   { id:"pen",     label:"Pen",         icon:"✏️" },
@@ -1306,6 +1315,7 @@ function drawObject(c, o, scale) {
 }
 
 function drawObjectInner(c, o, scale) {
+  if (o.kind === "zone") { drawZone(c, o, scale); return; }
   if (o.kind === "sym") { drawSym(c, o, scale); return; }
 
   if (o.kind === "ink") {
@@ -1616,6 +1626,11 @@ function objectBounds(o) {
     const b = { x1:o.x, y1:o.y, x2:o.x + o.w, y2:o.y + o.h };
     return o.rot ? rotAABB(b, o.rot) : b;
   }
+  if (o.kind === "zone" && o.pts) {
+    let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+    o.pts.forEach(p => { x1 = Math.min(x1, p.x); y1 = Math.min(y1, p.y); x2 = Math.max(x2, p.x); y2 = Math.max(y2, p.y); });
+    return { x1, y1, x2, y2 };
+  }
   if (o.kind === "shape") {
     if (o.shape === "hatch" && o.pts) {
       let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
@@ -1697,6 +1712,11 @@ function hitObject(px, py) {
   const slack = Math.max(8 / view.scale, 4);
   for (let i = objects.length - 1; i >= 0; i--) {
     const o = objects[i];
+    if ((o.kind === "zone") !== (activeTool === "zones")) continue;   // zones only touchable in the Zones tool
+    if (o.kind === "zone") {
+      if (o.pts && o.pts.length > 2 && pointInPts(p.x, p.y, o.pts)) return o;
+      continue;
+    }
     if (o.kind === "ink") {
       const tol = o.width / 2 + slack;
       for (let j = 0; j < o.points.length - 1; j++) {
@@ -1771,6 +1791,19 @@ function getHandles(o) {
   } else if (o.kind === "callout") {
     H.push({ x:o.x1, y:o.y1, set:(nx, ny) => { o.x1 = nx; o.y1 = ny; } });
     H.push({ x:o.x2, y:o.y2, set:(nx, ny) => { o.x2 = nx; o.y2 = ny; } });
+  } else if (o.kind === "zone" && o.pts) {
+    o.pts.forEach(p => H.push({ x:p.x, y:p.y, set:(nx, ny) => { p.x = nx; p.y = ny; } }));
+    for (let i = 0; i < o.pts.length; i++) {
+      const a = o.pts[i], b = o.pts[(i + 1) % o.pts.length];
+      H.push({
+        x:(a.x + b.x) / 2, y:(a.y + b.y) / 2, edge:true,
+        set:(nx, ny) => {
+          const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+          const dx = nx - mx, dy = ny - my;
+          a.x += dx; a.y += dy; b.x += dx; b.y += dy;
+        }
+      });
+    }
   } else if (o.kind === "shape") {
     if (o.shape === "hatch" && o.pts) {
       o.pts.forEach(p => H.push({ x:p.x, y:p.y, set:(nx, ny) => { p.x = nx; p.y = ny; } }));
@@ -1888,7 +1921,8 @@ function draw() {
 
   ctx.save();
   ctx.translate(view.x, view.y);
-  objects.forEach(o => drawObject(ctx, o, view.scale));
+  objects.forEach(o => { if (o.kind === "zone") drawObject(ctx, o, view.scale); });
+  objects.forEach(o => { if (o.kind !== "zone") drawObject(ctx, o, view.scale); });
   if (tempShape) drawObject(ctx, tempShape, view.scale);
   selection.forEach(o => {
     ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
@@ -2099,7 +2133,7 @@ function updateSelButtons() {
   const toolStylable = ["line", "arrow", "rect", "ellipse"].includes(activeTool);
   swp.style.display = (styleTargets.length || toolStylable) ? "flex" : "none";
   if (styleTargets.length) document.getElementById("lineStyleSel").value = styleTargets[0].ls || "solid";
-  const alphaTargets = selection.filter(o => (o.kind === "shape" && o.shape === "hatch") || o.kind === "img");
+  const alphaTargets = selection.filter(o => (o.kind === "shape" && o.shape === "hatch") || o.kind === "img" || o.kind === "zone");
   const aw = document.getElementById("alphaWrap");
   aw.style.display = alphaTargets.length ? "flex" : "none";
   if (alphaTargets.length) {
@@ -2227,7 +2261,7 @@ btnFlipV.onclick = () => { if (!selection.length) return; pushUndo(); selection.
 document.getElementById("alphaSlider").addEventListener("input", () => {
   const v = (+document.getElementById("alphaSlider").value) / 100;
   selection.forEach(o => {
-    if ((o.kind === "shape" && o.shape === "hatch") || o.kind === "img") o.alpha = v;
+    if ((o.kind === "shape" && o.shape === "hatch") || o.kind === "img" || o.kind === "zone") o.alpha = v;
   });
   requestDraw();
 });
@@ -2782,6 +2816,9 @@ function setTool(id) {
   document.getElementById("hatchWrap").style.display = id === "hatch" ? "flex" : "none";
   if (id === "hatch") document.getElementById("hatchStyleSel").value = hatchStyle;
   document.getElementById("measureWrap").style.display = id === "measure" ? "flex" : "none";
+  document.getElementById("zoneWrap").style.display = id === "zones" ? "flex" : "none";
+  if (id === "zones") { document.getElementById("znNum").value = zoneNextNum(); document.getElementById("znApply").disabled = true; clearSelection(); }
+  else if (selection.some(o => o.kind === "zone")) clearSelection();
   if (id === "measure") refreshMeasureNote();
   else { measureStart = null; measureLive = null; }
   document.getElementById("mode-pan").classList.toggle("active", id === "pan");
@@ -2864,6 +2901,86 @@ document.getElementById("hatchStyleSel").addEventListener("change", e => {
     try { localStorage.setItem("bpm-hatchstyle", v); } catch (e2) {}
   }
 });
+/* ---- Zones: polygon areas that number devices placed inside them ----
+   Zones are only selectable while the Zones tool is active; everywhere else they are
+   locked background shapes. Auto-assignment never clears a zone and never touches a
+   device whose zone was typed by hand (o.zoneMan). Smallest zone wins when nested. */
+let zonesShow = true;
+function zonesList() { return objects.filter(o => o.kind === "zone"); }
+function pointInPts(x, y, pts) {
+  let ins = false;
+  for (let a = 0, b = pts.length - 1; a < pts.length; b = a++) {
+    if ((pts[a].y > y) !== (pts[b].y > y) &&
+        x < (pts[b].x - pts[a].x) * (y - pts[a].y) / (pts[b].y - pts[a].y) + pts[a].x) ins = !ins;
+  }
+  return ins;
+}
+function ptsArea(pts) {
+  let s = 0;
+  for (let a = 0, b = pts.length - 1; a < pts.length; b = a++) s += (pts[b].x + pts[a].x) * (pts[b].y - pts[a].y);
+  return Math.abs(s / 2);
+}
+function zoneAt(x, y) {
+  let best = null, bestA = Infinity;
+  zonesList().forEach(z => {
+    if (z.pts && z.pts.length > 2 && pointInPts(x, y, z.pts)) {
+      const a = ptsArea(z.pts);
+      if (a < bestA) { bestA = a; best = z; }
+    }
+  });
+  return best;
+}
+function zoneAssign(list) {
+  let changed = 0;
+  (list || objects).forEach(o => {
+    if (o.kind !== "sym" || o.type === "campin" || o.zoneMan) return;
+    const z = zoneAt(o.x, o.y);
+    if (z && String(o.zone || "") !== String(z.zn)) { o.zone = String(z.zn); changed++; }
+  });
+  return changed;
+}
+function zoneNextNum() {
+  let n = 1;
+  const used = new Set(zonesList().map(z => String(z.zn)));
+  while (used.has(String(n))) n++;
+  return n;
+}
+function drawZone(c, o, scale) {
+  if (!zonesShow && activeTool !== "zones") return;
+  const pts = o.pts;
+  if (!pts || pts.length < 3) return;
+  const editing = activeTool === "zones";
+  c.save();
+  c.beginPath();
+  c.moveTo(pts[0].x * scale, pts[0].y * scale);
+  for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].x * scale, pts[i].y * scale);
+  c.closePath();
+  c.globalAlpha = (o.alpha != null ? o.alpha : 0.14) + (editing ? 0.08 : 0);
+  c.fillStyle = o.color || "#0057d8";
+  c.fill();
+  c.globalAlpha = editing ? 0.95 : 0.55;
+  c.strokeStyle = o.color || "#0057d8";
+  c.lineWidth = Math.max(1, 1.6 * scale);
+  c.setLineDash(editing ? [] : [7 * scale, 5 * scale]);
+  c.stroke();
+  c.setLineDash([]);
+  let cx = 0, cy = 0;
+  pts.forEach(p => { cx += p.x; cy += p.y; });
+  cx = cx / pts.length * scale; cy = cy / pts.length * scale;
+  const fs = Math.max(11, 13 * scale);
+  c.font = "600 " + fs + "px system-ui, sans-serif";
+  c.textAlign = "center"; c.textBaseline = "middle";
+  const lbl = "Z" + (o.zn != null ? o.zn : "?") + (o.name ? " · " + o.name : "");
+  const tw = c.measureText(lbl).width;
+  c.globalAlpha = editing ? 0.92 : 0.7;
+  c.fillStyle = "#ffffff";
+  c.fillRect(cx - tw / 2 - 5, cy - fs * 0.75, tw + 10, fs * 1.5);
+  c.globalAlpha = 1;
+  c.fillStyle = o.color || "#0057d8";
+  c.fillText(lbl, cx, cy);
+  c.restore();
+}
+
 buildTabs();
 buildPalette();
 
@@ -4214,6 +4331,40 @@ cv.addEventListener("pointerdown", e => {
     return;
   }
 
+  if (activeTool === "zones") {
+    if (selection.length === 1 && selection[0].kind === "zone") {
+      const hz2 = getHandles(selection[0]);
+      for (const hd of hz2) {
+        const hx = hd.x * view.scale + view.x, hy = hd.y * view.scale + view.y;
+        if (Math.hypot(p.x - hx, p.y - hy) <= 14) {
+          pushUndo();
+          dragMode = "handle";
+          activeHandle = hd;
+          setHandleAnchor(hd);
+          return;
+        }
+      }
+    }
+    const hz = hitObject(p.x, p.y);
+    if (hz && hz.kind === "zone") {
+      setSelection([hz]);
+      document.getElementById("znNum").value = hz.zn != null ? hz.zn : "";
+      document.getElementById("znName").value = hz.name || "";
+      document.getElementById("znApply").disabled = false;
+      pushUndo();
+      dragMode = "moveSel";
+      moveStartImg = ip;
+      moveOrig = selection.map(o => JSON.stringify(o));
+      draw();
+      return;
+    }
+    shapeStart = ip;
+    dragMode = "shape";
+    clearSelection();
+    document.getElementById("znApply").disabled = true;
+    return;
+  }
+
   if (SHAPE_TOOLS.includes(activeTool)) {
     // endpoints of the just-drawn (still selected) shape stay grabbable without switching to Select
     if (selection.length === 1 && (selection[0].kind === "shape" || selection[0].kind === "callout")) {
@@ -4380,6 +4531,12 @@ cv.addEventListener("pointermove", e => {
       tempShape = { kind:"shape", shape:"hatch", pattern:hatchStyle,
         pts: [{ x:shapeStart.x, y:shapeStart.y }, { x:ip.x, y:shapeStart.y }, { x:ip.x, y:ip.y }, { x:shapeStart.x, y:ip.y }],
         color:penColor, width:base.width, alpha:0.4 };
+    } else if (activeTool === "zones") {
+      tempShape = { kind:"zone",
+        zn:String(document.getElementById("znNum").value.trim() || zoneNextNum()),
+        name:document.getElementById("znName").value.trim(),
+        pts: [{ x:shapeStart.x, y:shapeStart.y }, { x:ip.x, y:shapeStart.y }, { x:ip.x, y:ip.y }, { x:shapeStart.x, y:ip.y }],
+        color:penColor, alpha:0.14 };
     } else {
       let ep = ip;
       if (e.shiftKey && (activeTool === "line" || activeTool === "arrow" || activeTool === "brk")) ep = snap45(shapeStart.x, shapeStart.y, ip.x, ip.y);
@@ -4437,6 +4594,7 @@ function endPointer(e) {
   if (dragMode === "handle") {
     activeHandle = null;
     dragMode = null;
+    if (selection.length === 1 && selection[0].kind === "zone") zoneAssign();
     scheduleAutosave();
     updateSelButtons();
     draw();
@@ -4487,6 +4645,15 @@ function endPointer(e) {
     if (tempShape && moved) {
       if (activeTool === "callout") {
         openTextCreator({ mode:"callout", shape:tempShape });
+      } else if (tempShape.kind === "zone") {
+        pushUndo();
+        objects.push(tempShape);
+        setSelection([tempShape]);
+        const zc = zoneAssign();
+        document.getElementById("znNum").value = zoneNextNum();
+        document.getElementById("znApply").disabled = false;
+        statusEl.textContent = "Zone " + tempShape.zn + " added" + (zc ? " — " + zc + " device" + (zc > 1 ? "s" : "") + " zoned" : "") + ". Drag the corner handles to shape it.";
+        scheduleAutosave();
       } else {
         pushUndo();
         objects.push(tempShape);
@@ -4504,6 +4671,7 @@ function endPointer(e) {
       const a = toImage(Math.min(marquee.x1, marquee.x2), Math.min(marquee.y1, marquee.y2));
       const b = toImage(Math.max(marquee.x1, marquee.x2), Math.max(marquee.y1, marquee.y2));
       let hits = objects.filter(o => {
+        if (o.kind === "zone") return false;
         const bb = objectBounds(o);
         return bb.x1 < b.x && bb.x2 > a.x && bb.y1 < b.y && bb.y2 > a.y;
       });
@@ -4537,7 +4705,11 @@ function endPointer(e) {
         else if (selection[0].kind === "text" || selection[0].kind === "callout") openTextEditor(selection[0]);
       }
       lastTap = { t: now, x: p.x, y: p.y };
-    } else { scheduleAutosave(); }
+    } else {
+      if (selection.some(o => o.kind === "zone")) zoneAssign();
+      else zoneAssign(selection.filter(o => o.kind === "sym"));
+      scheduleAutosave();
+    }
     pendingDeselect = null;
     moveOrig = null; dragMode = null;
     draw();
@@ -4548,6 +4720,8 @@ function endPointer(e) {
     if (!moved && TYPE_MAP[activeTool]) {
       pushUndo();
       const m = { kind:"sym", type:activeTool, x:ip.x, y:ip.y, size:sizeVal(), rot:0, fx:false, fy:false, zone:"", loop:"", dev:"", info:"" };
+      const az = zoneAt(ip.x, ip.y);
+      if (az) m.zone = String(az.zn);
       objects.push(m);
       setSelection([m]);
       draw();
@@ -4734,6 +4908,13 @@ document.getElementById("detailsSave").onclick = () => {
       });
       if (!multi && detailsPhoto !== undefined) {
         if (detailsPhoto === null) delete o.photo; else o.photo = detailsPhoto;
+      }
+      // typing a zone by hand pins it against auto-zoning; clearing it (or matching
+      // the shape underneath) hands the device back to the zone shapes
+      if ((!multi || vals.zone !== "") && zonesList().length) {
+        const zHere = zoneAt(o.x, o.y);
+        if (!o.zone || (zHere && String(zHere.zn) === String(o.zone))) delete o.zoneMan;
+        else o.zoneMan = true;
       }
     });
   }
@@ -5156,7 +5337,7 @@ document.getElementById("focusRedo").onclick = () => document.getElementById("bt
 
 /* Revit-style two-letter hotkeys (PC keyboards) */
 let hkBuf = "", hkTime = 0;
-const HOTKEY_TOOLS = { dl:"line", ar:"arrow", re:"rect", el:"ellipse", cd:"cloud", tx:"text", pn:"pen", hl:"hl", ht:"hatch", mv:"select", pa:"pan", ts:"test" };
+const HOTKEY_TOOLS = { dl:"line", ar:"arrow", re:"rect", el:"ellipse", cd:"cloud", tx:"text", pn:"pen", hl:"hl", ht:"hatch", mv:"select", pa:"pan", ts:"test", zn:"zones" };
 const HOTKEY_ACTS = {
   ro:() => { if (!btnRotate.disabled) btnRotate.onclick(); },
   co:() => { if (!btnDup.disabled) btnDup.onclick(); },
@@ -5206,7 +5387,8 @@ function renderExportCanvas() {
   c.fillStyle = "#ffffff";
   c.fillRect(0, 0, out.width, out.height);
   c.drawImage(img, 0, 0);
-  objects.forEach(o => drawObject(c, o, 1));
+  objects.forEach(o => { if (o.kind === "zone") drawObject(c, o, 1); });
+  objects.forEach(o => { if (o.kind !== "zone") drawObject(c, o, 1); });
 
   const used = TYPES.filter(t => objects.some(o => o.kind === "sym" && o.type === t.id));
   const zones = zoneCounts();
@@ -6673,6 +6855,37 @@ function fsFinishTest() {
     "\nRemember to Export register so colleagues get the record.");
   if (confirm("Save the test report PDF now?")) fsTestPdf(rec);
 }
+
+document.getElementById("znApply").onclick = () => {
+  const z = selection[0];
+  if (!z || z.kind !== "zone") return;
+  pushUndo();
+  const oldZn = String(z.zn);
+  z.zn = document.getElementById("znNum").value.trim() || z.zn;
+  z.name = document.getElementById("znName").value.trim();
+  z.color = penColor;
+  objects.forEach(o => {
+    if (o.kind === "sym" && !o.zoneMan && String(o.zone || "") === oldZn && zoneAt(o.x, o.y) === z) o.zone = String(z.zn);
+  });
+  zoneAssign();
+  scheduleAutosave();
+  draw();
+};
+document.getElementById("znRezone").onclick = () => {
+  const would = [];
+  objects.forEach(o => {
+    if (o.kind !== "sym" || o.type === "campin" || o.zoneMan) return;
+    const z = zoneAt(o.x, o.y);
+    if (z && String(o.zone || "") !== String(z.zn)) would.push(o);
+  });
+  if (!would.length) { alert("Nothing to change — every device inside a zone already carries that zone's number."); return; }
+  if (!confirm(would.length + " device(s) on this level will take their zone number from the zone shapes.\nManually-set zones are left alone.\n\nApply?")) return;
+  pushUndo();
+  zoneAssign();
+  scheduleAutosave();
+  draw();
+};
+document.getElementById("znShow").onchange = e => { zonesShow = e.target.checked; draw(); };
 
 document.getElementById("fsTestBtn").onclick = fsOpenTest;
 document.getElementById("fsProfileBtn").onclick = () => document.getElementById("fsProfileInput").click();
