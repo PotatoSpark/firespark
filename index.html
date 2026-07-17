@@ -11,6 +11,8 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#23272d">
 <title>FireSpark</title>
+<script src="./qr.js" defer></script>
+<script src="./jsqr.js" defer></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html, body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:#1a1d21; color:#e8e8e8; }
@@ -161,7 +163,7 @@
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span style="font-size:21px;font-weight:800;color:#c8340f;display:inline-flex;align-items:center;gap:8px"><img src="icon-192.png" style="width:26px;height:26px;border-radius:6px" alt=""> FIRESPARK</span>
-      <span style="font-size:11px;color:#7c8a91">v0.29 beta</span>
+      <span style="font-size:11px;color:#7c8a91">v0.30 beta</span>
       <span id="fsCoBadge" style="display:none;font-size:12px;font-weight:600;color:#7c8a91;border:1px solid #d5dde1;border-radius:20px;padding:2px 10px"></span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsThemeBtn" title="Light / dark">&#127765;</button>
@@ -216,7 +218,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.29 beta</span></span>
+    <span class="title">FIRESPARK <span style="color:#888;font-weight:400;font-size:11px">v0.30 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -462,6 +464,14 @@
   </div>
 </div>
 
+<div class="modal" id="fsQrModal">
+  <div class="modalbox" style="max-width:440px;width:94vw;text-align:left">
+    <h3 style="margin-bottom:6px">Scan a device tag</h3>
+    <video id="fsQrVideo" playsinline muted style="width:100%;border-radius:10px;background:#000;min-height:220px"></video>
+    <div id="fsQrStatus" style="font-size:13px;color:#aaa;margin-top:8px">Point the camera at a FireSpark QR label.</div>
+    <div class="row" style="margin-top:10px"><button class="btn" id="fsQrClose">Close</button></div>
+  </div>
+</div>
 <div class="modal" id="timerModal">
   <div class="modalbox" style="max-width:380px;text-align:center">
     <h3>Timer</h3>
@@ -704,7 +714,9 @@ const TOOLS_TAB = [
   { id:"find",    label:"Find device", icon:"🔎" },
   { id:"measure", label:"Measure",     icon:"📏" },
   { id:"zones",   label:"Zones (ZN)",  icon:"⬠" },
-  { id:"battcalc", label:"Battery calc", icon:"🔋" }
+  { id:"battcalc", label:"Battery calc", icon:"🔋" },
+  { id:"qrlabels", label:"QR labels",   icon:"🏷" },
+  { id:"qrscan",   label:"Scan tag",    icon:"🔳" }
 ];
 const MARKUP_TOOLS = [
   { id:"pen",     label:"Pen",         icon:"✏️" },
@@ -2635,6 +2647,8 @@ function buildPalette() {
       if (t.id === "photos") { openPhotosGallery(); return; }
       if (t.id === "find") { openFind(); return; }
       if (t.id === "battcalc") { openBattCalc(); return; }
+      if (t.id === "qrlabels") { fsQrLabels(); return; }
+      if (t.id === "qrscan") { fsQrScan(); return; }
       if (t.id !== "hatch" && MODIFY_TOOLS.some(m => m.id === t.id)) { modifyAction(t.id); return; }
       setTool(t.id);
     };
@@ -3969,6 +3983,160 @@ function timerHalt() {
   document.getElementById("timerLive").textContent = "--:--";
   try { localStorage.removeItem("bpm-timer"); } catch (e) {}
 }
+/* ---------- QR asset tags: printable labels + camera scan ---------- */
+const FS_QR_SKIP = { campin:1, door:1, dbldoor:1, sldoor:1, rldoor:1, window:1, opening:1, stair:1, lstair:1 };
+function fsQrDevices() {
+  const out = [];
+  findLevelSets().forEach(set => set.objects.forEach(o => {
+    if (o.kind === "sym" && !FS_QR_SKIP[o.type]) out.push({ o: o, set: set });
+  }));
+  return out;
+}
+function fsEnsureQids() {
+  let n = 0, seen = {};
+  fsQrDevices().forEach(en => {
+    if (en.o.qid && !seen[en.o.qid]) { seen[en.o.qid] = 1; return; }
+    let q;
+    do { q = "q" + Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 7); } while (seen[q]);
+    en.o.qid = q; seen[q] = 1; n++;
+  });
+  if (n) { autosaveDirty = true; scheduleAutosave(); }
+  return n;
+}
+function fsQrDraw(c2, text, x, y, size) {
+  const qr = qrcode(0, "M");
+  qr.addData(text);
+  qr.make();
+  const nMod = qr.getModuleCount();
+  const cell = size / nMod;
+  c2.fillStyle = "#ffffff"; c2.fillRect(x, y, size, size);
+  c2.fillStyle = "#000000";
+  for (let r = 0; r < nMod; r++)
+    for (let col = 0; col < nMod; col++)
+      if (qr.isDark(r, col)) c2.fillRect(x + col * cell, y + r * cell, Math.ceil(cell), Math.ceil(cell));
+}
+function fsQrLabels() {
+  if (typeof qrcode !== "function") { alert("QR generator not loaded yet — check your connection and reload once."); return; }
+  if (!img) { alert("Load a block plan first."); return; }
+  if (!fsSiteCtx) { alert("Open the site from the register first — tags are tied to the site."); return; }
+  fsEnsureQids();
+  const devs = fsQrDevices();
+  if (!devs.length) { alert("No devices on this plan yet."); return; }
+  const W = 1240, H = 1754, M2 = 40, COLS = 4, ROWS = 8;
+  const cw = (W - M2 * 2) / COLS, ch = (H - M2 * 2) / ROWS;
+  const pages = [];
+  let c2 = null, idx = 0;
+  devs.forEach(en => {
+    const slot = idx % (COLS * ROWS);
+    if (slot === 0) {
+      const cv2 = document.createElement("canvas");
+      cv2.width = W; cv2.height = H;
+      c2 = cv2.getContext("2d");
+      c2.fillStyle = "#ffffff"; c2.fillRect(0, 0, W, H);
+      c2.strokeStyle = "#dddddd"; c2.lineWidth = 1;
+      for (let i = 0; i <= COLS; i++) { c2.beginPath(); c2.moveTo(M2 + i * cw, M2); c2.lineTo(M2 + i * cw, H - M2); c2.stroke(); }
+      for (let i = 0; i <= ROWS; i++) { c2.beginPath(); c2.moveTo(M2, M2 + i * ch); c2.lineTo(W - M2, M2 + i * ch); c2.stroke(); }
+      pages.push(cv2);
+    }
+    const gx = M2 + (slot % COLS) * cw, gy = M2 + Math.floor(slot / COLS) * ch;
+    const qs = ch - 40;
+    fsQrDraw(c2, "FS1|" + fsSiteCtx.siteId + "|" + en.o.qid, gx + 14, gy + (ch - qs) / 2, qs);
+    const t = TYPE_MAP[en.o.type];
+    const parts = [];
+    if (en.o.zone) parts.push("Z" + en.o.zone);
+    if (en.o.loop) parts.push("L" + en.o.loop);
+    if (en.o.dev) parts.push("D" + en.o.dev);
+    const tx = gx + qs + 24;
+    c2.fillStyle = "#111111"; c2.textAlign = "left"; c2.textBaseline = "top";
+    c2.font = "700 19px Arial";
+    c2.fillText((t ? t.label : en.o.type), tx, gy + 26, cw - qs - 34);
+    c2.font = "700 24px Arial";
+    c2.fillText(parts.join(" \u00b7 ") || "\u2014", tx, gy + 54, cw - qs - 34);
+    c2.font = "13px Arial"; c2.fillStyle = "#555555";
+    c2.fillText(String(en.o.info || "").slice(0, 24), tx, gy + 92, cw - qs - 34);
+    c2.fillText((fsSiteCtx.siteName || "").slice(0, 24), tx, gy + 116, cw - qs - 34);
+    if (levels.length > 1 && en.set.name) c2.fillText(en.set.name.slice(0, 22), tx, gy + 140, cw - qs - 34);
+    idx++;
+  });
+  deliverFile(fsCanvasesToPdf(pages), "qr-labels-" + (fsSiteCtx.siteName || "site").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40) + ".pdf", "application/pdf");
+  statusEl.textContent = devs.length + " labels over " + pages.length + " page(s) — stick them on the devices";
+}
+let fsQrStream = null, fsQrRaf = null;
+function fsQrHandle(data) {
+  const m = /^FS1\|([^|]+)\|(.+)$/.exec(String(data || ""));
+  if (!m) return { ok: false, msg: "Not a FireSpark tag" };
+  if (!fsSiteCtx || m[1] !== fsSiteCtx.siteId) return { ok: false, msg: "That tag belongs to a DIFFERENT site" };
+  let hit = null;
+  findLevelSets().forEach(set => set.objects.forEach(o => { if (o.qid === m[2]) hit = { o: o, set: set }; }));
+  if (!hit) return { ok: false, msg: "Tag not found on this plan (device deleted?)" };
+  const jump = () => {
+    if (hit.set.li !== curLevel && levels.length > 1) {
+      afterLevelSwitch = () => zoomFlashDevice(hit.o);
+      switchLevel(hit.set.li);
+    } else zoomFlashDevice(hit.o);
+  };
+  if (activeTool === "test") {
+    const yr = +testYearSel;
+    hit.o.ty = hit.o.ty || [];
+    let msg;
+    if (hit.o.ty.includes(yr)) msg = "Already ticked for " + yr;
+    else { pushUndo(); hit.o.ty.push(yr); scheduleAutosave(); msg = "\u2713 Tested " + yr; }
+    jump();
+    updateTestCounter();
+    return { ok: true, msg: msg };
+  }
+  setSelection([hit.o]);
+  jump();
+  return { ok: true, msg: "Found it" };
+}
+function fsQrScanStop() {
+  if (fsQrRaf) cancelAnimationFrame(fsQrRaf);
+  fsQrRaf = null;
+  if (fsQrStream) { fsQrStream.getTracks().forEach(t2 => t2.stop()); fsQrStream = null; }
+  document.getElementById("fsQrModal").classList.remove("show");
+}
+async function fsQrScan() {
+  if (typeof jsQR !== "function") { alert("Scanner not loaded yet — check your connection and reload once."); return; }
+  if (!fsSiteCtx) { alert("Open the site from the register first."); return; }
+  const modal = document.getElementById("fsQrModal");
+  const vid = document.getElementById("fsQrVideo");
+  const st = document.getElementById("fsQrStatus");
+  modal.classList.add("show");
+  st.textContent = "Starting camera\u2026";
+  try {
+    fsQrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+  } catch (e) {
+    st.textContent = "Camera not available — allow camera access for this app and try again.";
+    return;
+  }
+  vid.srcObject = fsQrStream;
+  await vid.play().catch(() => {});
+  st.textContent = "Point the camera at a FireSpark QR label.";
+  const cv2 = document.createElement("canvas");
+  const cx2 = cv2.getContext("2d", { willReadFrequently: true });
+  let hold = 0;
+  const loop = () => {
+    if (!fsQrStream) return;
+    if (vid.videoWidth && Date.now() > hold) {
+      cv2.width = vid.videoWidth; cv2.height = vid.videoHeight;
+      cx2.drawImage(vid, 0, 0);
+      const d2 = cx2.getImageData(0, 0, cv2.width, cv2.height);
+      const code = jsQR(d2.data, cv2.width, cv2.height, { inversionAttempts: "dontInvert" });
+      if (code && code.data) {
+        const res = fsQrHandle(code.data);
+        st.textContent = res.msg;
+        if (res.ok) {
+          if (navigator.vibrate) navigator.vibrate(80);
+          if (activeTool !== "test") { fsQrScanStop(); return; }
+          hold = Date.now() + 1600;   // test mode: keep scanning tag after tag
+        } else hold = Date.now() + 1200;
+      }
+    }
+    fsQrRaf = requestAnimationFrame(loop);
+  };
+  fsQrRaf = requestAnimationFrame(loop);
+}
+document.getElementById("fsQrClose").onclick = fsQrScanStop;
 function openTimer() { document.getElementById("timerModal").classList.add("show"); timerTick0(); }
 function timerTick0() { if (timerInterval) timerTick(); }
 document.getElementById("timerStartDown").onclick = () => {
